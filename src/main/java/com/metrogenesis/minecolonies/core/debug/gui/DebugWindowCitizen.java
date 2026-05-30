@@ -1,0 +1,62 @@
+package com.metrogenesis.minecolonies.core.debug.gui;
+
+import com.metrogenesis.blockui.controls.Button;
+import com.metrogenesis.blockui.controls.Text;
+import com.metrogenesis.minecolonies.api.colony.ICitizenDataView;
+import com.metrogenesis.minecolonies.api.util.constant.Constants;
+import com.metrogenesis.minecolonies.core.Network;
+import com.metrogenesis.minecolonies.core.client.gui.AbstractWindowSkeleton;
+import com.metrogenesis.minecolonies.core.debug.messages.DebugEnablePathfindingMessage;
+import com.metrogenesis.minecolonies.core.debug.messages.QueryCitizenAIHistoryMessage;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
+
+import java.util.Objects;
+
+/**
+ * Debug window for citizens
+ */
+public class DebugWindowCitizen extends AbstractWindowSkeleton
+{
+    /**
+     * Static data holder for responses for now, TODO: rework with citizen modules
+     */
+    public static MutableComponent outputMessage = Component.empty();
+
+    /**
+     * Whether pathfinding tracking is enabled(not synced!)
+     */
+    private static boolean trackingDebug = false;
+
+    public DebugWindowCitizen(final ICitizenDataView citizen)
+    {
+        super(new ResourceLocation(Constants.MOD_ID, "gui/citizen/debug.xml"));
+        if (Objects.equals(outputMessage, Component.empty()))
+        {
+            outputMessage = Component.literal("Enabled Citizen AI History!");
+        }
+
+        findPaneOfTypeByID("citizenid", Text.class).setText(Component.literal("Citizen ID:" + citizen.getId()));
+        findPaneOfTypeByID("colonyid", Text.class).setText(Component.literal("Colony ID:" + citizen.getColonyId()));
+        findPaneOfTypeByID("aihistory", Button.class).setHandler(b -> Network.getNetwork().sendToServer(new QueryCitizenAIHistoryMessage(citizen)));
+        findPaneOfTypeByID("pathfinding", Button.class).setHandler(b -> {
+            trackingDebug = !trackingDebug;
+            if (trackingDebug)
+            {
+                outputMessage = Component.literal("Receiving pathfinding data");
+            }
+
+            Network.getNetwork().sendToServer(new DebugEnablePathfindingMessage(citizen, trackingDebug));
+            findPaneOfTypeByID("pathfinding", Button.class).setText(Component.literal((trackingDebug ? "disable Pathfinding tracking" : "enable Pathfinding tracking")));
+        });
+        findPaneOfTypeByID("pathfinding", Button.class).setText(Component.literal((trackingDebug ? "disable Pathfinding tracking" : "enable Pathfinding tracking")));
+    }
+
+    @Override
+    public void onUpdate()
+    {
+        super.onUpdate();
+        findPaneOfTypeByID("output", Text.class).setText(outputMessage);
+    }
+}

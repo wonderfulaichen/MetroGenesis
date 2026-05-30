@@ -1,0 +1,23 @@
+package com.metrogenesis.citizen;
+
+import com.metrogenesis.MetroGenesis;
+import com.metrogenesis.entity.MetroGenesisCitizen;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+/**
+ * 甯傛皯浜嬩欢 鈥?鑷畾涔夊競姘戝姞鍏ヤ笘鐣屾椂鎸傝浇宸ヤ綔 AI
+ * <p>
+ * 濮旀墭缁?{@link MetroGenesisCitizen#reloadJobAI()} 澶勭悊 AI 鎸傝浇锛? * 閫氳繃 {@link com.metrogenesis.init.ModJobs} 娉ㄥ唽琛ㄦ煡鎵捐亴涓氬搴旂殑 Goal銆? */
+@Mod.EventBusSubscriber(modid = MetroGenesis.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class CitizenEvents {
+
+    @SubscribeEvent
+    public static void onEntityJoin(EntityJoinLevelEvent event) {
+        if (!(event.getEntity() instanceof MetroGenesisCitizen citizen)) return;
+        citizen.reloadJobAI();
+        MetroGenesis.LOGGER.info("[AI] {} ({}) → 实体加入，AI 已挂载",
+                citizen.getCitizenName(), citizen.getCitizenJob());
+    }
+}

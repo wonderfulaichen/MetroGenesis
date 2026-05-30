@@ -1,0 +1,64 @@
+package com.metrogenesis.minecolonies.core.colony.jobs;
+
+import com.metrogenesis.minecolonies.api.client.render.modeltype.ModModelTypes;
+import com.metrogenesis.minecolonies.api.colony.ICitizenData;
+import com.metrogenesis.minecolonies.core.entity.ai.workers.production.herders.EntityAIWorkCowboy;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import static com.metrogenesis.minecolonies.api.util.constant.StatisticsConstants.ITEM_OBTAINED;
+import static com.metrogenesis.minecolonies.core.colony.buildings.modules.BuildingModules.STATS_MODULE;
+
+/**
+ * The Cowboy job
+ */
+public class JobCowboy extends AbstractJob<EntityAIWorkCowboy, JobCowboy>
+{
+    /**
+     * Instantiates the placeholder job.
+     *
+     * @param entity the entity.
+     */
+    public JobCowboy(final ICitizenData entity)
+    {
+        super(entity);
+    }
+
+    /**
+     * Generate your AI class to register.
+     *
+     * @return your personal AI instance.
+     */
+    @Nullable
+    @Override
+    public EntityAIWorkCowboy generateAI()
+    {
+        return new EntityAIWorkCowboy(this);
+    }
+
+    /**
+     * Get the RenderBipedCitizen.Model to use when the Citizen performs this job role.
+     *
+     * @return Model of the citizen.
+     */
+    @NotNull
+    @Override
+    public ResourceLocation getModel()
+    {
+        return ModModelTypes.COW_FARMER_ID;
+    }
+
+    @Override
+    public boolean onStackPickUp(@NotNull final ItemStack pickedUpStack)
+    {
+        if (getCitizen().getWorkBuilding() != null && getCitizen().getEntity().isPresent() && getCitizen().getWorkBuilding()
+          .isInBuilding(getCitizen().getEntity().get().blockPosition()))
+        {
+            getCitizen().getWorkBuilding().getModule(STATS_MODULE).incrementBy(ITEM_OBTAINED + ";" + pickedUpStack.getItem().getDescriptionId(), pickedUpStack.getCount());
+        }
+
+        return super.onStackPickUp(pickedUpStack);
+    }
+}

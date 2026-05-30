@@ -1,0 +1,65 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+.gradle/
+
+# IntelliJ / Trae
+.agents/
+.npm-cache/
+
+# Minecraft run directory (logs, saves, config, crash reports)
+run/
+
+# Logs and build outputs
+*.log
+*.log.gz
+build_output*.txt
+build_output*.log
+compile_errors*
+compile_out*
+BUILD_OUTPUT*
+err*.txt
+err*.log
+
+# Backup files from BOM fix
+*.bak4
+_fix_*
+
+# Temp / generated files
+temp_*
+_deep_scan.py
+extract_errors.py
+fix_line_merges.py
+scan_*
+smart_fix.py
+out_new.txt
+build_errors.txt
+build_log.txt
+
+# other
+eclipse
+/com/
+out_new.txt
+diagnosis-fix-report.md
+demo-overview.md
+deep_scan.py
+build_run.bat
+build_run.ps1
+
+# Files from Forge MDK
+forge*changelog.txt

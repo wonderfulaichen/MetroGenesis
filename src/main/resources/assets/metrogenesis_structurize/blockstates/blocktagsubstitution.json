@@ -1,0 +1,5 @@
+﻿{
+  "variants": {
+    "": { "model": "metrogenesis_structurize:block/blocktagsubstitution" }
+  }
+}

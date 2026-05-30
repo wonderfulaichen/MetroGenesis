@@ -1,0 +1,4 @@
+﻿{
+  "parent": "metrogenesis_structurize:block/blocktagsubstitutionoverlay",
+  "loader": "metrogenesis_structurize:overlaid"
+}

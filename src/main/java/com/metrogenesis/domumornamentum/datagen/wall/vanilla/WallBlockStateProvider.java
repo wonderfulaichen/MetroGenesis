@@ -1,0 +1,83 @@
+package com.metrogenesis.domumornamentum.datagen.wall.vanilla;
+
+import com.metrogenesis.domumornamentum.block.ModBlocks;
+import com.metrogenesis.domumornamentum.block.vanilla.WallBlock;
+import com.metrogenesis.domumornamentum.datagen.MateriallyTexturedModelBuilder;
+import com.metrogenesis.domumornamentum.datagen.utils.ModelBuilderUtils;
+import com.metrogenesis.domumornamentum.util.Constants;
+import net.minecraft.core.Direction;
+import net.minecraft.data.DataGenerator;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.state.properties.WallSide;
+import net.minecraftforge.client.model.generators.BlockStateProvider;
+import net.minecraftforge.client.model.generators.ItemModelBuilder;
+import net.minecraftforge.client.model.generators.MultiPartBlockStateBuilder;
+import net.minecraftforge.common.data.ExistingFileHelper;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
+
+import static net.minecraft.world.level.block.WallBlock.UP;
+
+public class WallBlockStateProvider extends BlockStateProvider {
+
+    public WallBlockStateProvider(DataGenerator gen, ExistingFileHelper exFileHelper) {
+        super(gen.getPackOutput(), Constants.MOD_ID, exFileHelper);
+    }
+
+    @Override
+    protected void registerStatesAndModels() {
+        createBlockstateFile(ModBlocks.getInstance().getWall());
+    }
+
+    private void createBlockstateFile(final WallBlock wallBlock) {
+        final MultiPartBlockStateBuilder builder = getMultipartBuilder(wallBlock);
+        builder.part()
+                .modelFile(models().withExistingParent("block/wall/wall_post", modLoc("block/wall/wall_post_spec"))
+                        .customLoader(MateriallyTexturedModelBuilder::new)
+                        .end())
+                .uvLock(true)
+                .addModel()
+                .condition(UP, true)
+                .end();
+
+        for (final Direction possibleValue : HorizontalDirectionalBlock.FACING.getPossibleValues()) {
+            for (final WallSide value : WallSide.values()) {
+                if (value == WallSide.NONE)
+                    continue;
+
+                builder.part()
+                        .modelFile(models().withExistingParent("block/wall/wall_side" + (value == WallSide.TALL ? "_tall" : ""), modLoc("block/wall/wall_side" + (value == WallSide.TALL ? "_tall" : "") + "_spec"))
+                                .customLoader(MateriallyTexturedModelBuilder::new)
+                                .end())
+                        .uvLock(true)
+                        .rotationY(getYFromFacing(possibleValue))
+                        .addModel()
+                        .condition(Objects.requireNonNull(WallBlock.PROPERTIES.get(possibleValue)), value)
+                        .end();
+            }
+        }
+
+        final ItemModelBuilder itemModelBuilder = itemModels()
+                .withExistingParent(wallBlock.getRegistryName().getPath(), modLoc("item/wall/wall_spec"))
+                .customLoader(MateriallyTexturedModelBuilder::new)
+                .end();
+
+        ModelBuilderUtils.applyDefaultItemTransforms(itemModelBuilder);
+    }
+
+    @NotNull
+    @Override
+    public String getName() {
+        return "Wall BlockStates Provider";
+    }
+
+    private int getYFromFacing(final Direction facing) {
+        return switch (facing) {
+            default -> 0;
+            case EAST -> 90;
+            case SOUTH -> 180;
+            case WEST -> 270;
+        };
+    }
+}

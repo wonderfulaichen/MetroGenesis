@@ -1,0 +1,30 @@
+package com.metrogenesis.blockui.controls;
+
+import com.metrogenesis.blockui.PaneParams;
+
+/**
+ * Formatted larger textContent area.
+ */
+public class Text extends AbstractTextElement
+{
+    /**
+     * Standard constructor which instantiates the textField.
+     */
+    public Text()
+    {
+        super(DEFAULT_TEXT_ALIGNMENT, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_SHADOW, true);
+        recalcTextRendering();
+        // Required default constructor.
+    }
+
+    /**
+     * Create text from xml.
+     *
+     * @param params xml parameters.
+     */
+    public Text(final PaneParams params)
+    {
+        super(params, DEFAULT_TEXT_ALIGNMENT, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_SHADOW, true);
+        recalcTextRendering();
+    }
+}

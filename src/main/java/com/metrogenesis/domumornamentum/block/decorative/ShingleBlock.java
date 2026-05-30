@@ -1,0 +1,223 @@
+package com.metrogenesis.domumornamentum.block.decorative;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.gson.JsonObject;
+import com.metrogenesis.domumornamentum.block.*;
+import com.metrogenesis.domumornamentum.block.components.SimpleRetexturableComponent;
+import com.metrogenesis.domumornamentum.block.types.ExtraBlockType;
+import com.metrogenesis.domumornamentum.block.types.ShingleShapeType;
+import com.metrogenesis.domumornamentum.client.model.data.MaterialTextureData;
+import com.metrogenesis.domumornamentum.entity.block.MateriallyTexturedBlockEntity;
+import com.metrogenesis.domumornamentum.recipe.FinishedDORecipe;
+import com.metrogenesis.domumornamentum.tag.ModTags;
+import com.metrogenesis.domumornamentum.util.BlockUtils;
+import com.metrogenesis.domumornamentum.util.Constants;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.data.recipes.FinishedRecipe;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Half;
+import net.minecraft.world.level.block.state.properties.StairsShape;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Class defining the general shingle.
+ */
+public class ShingleBlock extends AbstractBlockStairs<ShingleBlock> implements IMateriallyTexturedBlock, ICachedItemGroupBlock, EntityBlock
+{
+    private static List<IMateriallyTexturedBlockComponent> COMPONENTS = null;
+
+    /**
+     * The hardness this block has.
+     */
+    private static final float BLOCK_HARDNESS = 3F;
+
+    /**
+     * The resistance this block has.
+     */
+    private static final float RESISTANCE = 1F;
+
+    private final List<ItemStack> fillItemGroupCache = Lists.newArrayList();
+
+    public ShingleBlock()
+    {
+        super(Blocks.OAK_PLANKS::defaultBlockState, Properties.of().mapColor(MapColor.WOOD).strength(BLOCK_HARDNESS, RESISTANCE).noOcclusion());
+    }
+
+    /**
+     * Get the model type from a StairsShape object
+     *
+     * @param shape the StairsShape object
+     * @return the model type for provided StairsShape
+     */
+    public static ShingleShapeType getTypeFromShape(final StairsShape shape)
+    {
+        return switch (shape)
+        {
+            case INNER_LEFT, INNER_RIGHT -> ShingleShapeType.CONCAVE;
+            case OUTER_LEFT, OUTER_RIGHT -> ShingleShapeType.CONVEX;
+            default -> ShingleShapeType.STRAIGHT;
+        };
+    }
+
+    @Override
+    public VoxelShape getShape(final BlockState blockState, final BlockGetter blockGetter, final BlockPos blockPos, final CollisionContext collisionContext)
+    {
+        if (getRegistryName().equals(new ResourceLocation(Constants.MOD_ID, "shingle_flat_lower")))
+        {
+            return blockState.getValue(HALF).equals(Half.BOTTOM) ? BOTTOM_AABB : TOP_AABB;
+        } else if (getRegistryName().equals(new ResourceLocation(Constants.MOD_ID, "shingle_steep_lower")))
+        {
+            return switch (blockState.getValue(FACING))
+            {
+                case NORTH -> NORTH_AABB;
+                case EAST -> EAST_AABB;
+                case WEST -> WEST_AABB;
+                case SOUTH -> SOUTH_AABB;
+                default ->  blockState.getValue(HALF).equals(Half.BOTTOM) ? BOTTOM_AABB : TOP_AABB;
+            };
+        }
+
+        return super.getShape(blockState, blockGetter, blockPos, collisionContext);
+    }
+
+    @Override
+    public @NotNull List<IMateriallyTexturedBlockComponent> getComponents()
+    {
+        if (COMPONENTS == null)
+        {
+            COMPONENTS = ImmutableList.<IMateriallyTexturedBlockComponent>builder()
+                .add(new SimpleRetexturableComponent(new ResourceLocation("block/clay"), ModTags.SHINGLES_ROOF,
+                    ModBlocks.getInstance()
+                        .getExtraTopBlocks()
+                        .stream()
+                        .filter(extraBlock -> (extraBlock.getType() == ExtraBlockType.BASE_BRICK))
+                        .findFirst()
+                        .get()))
+                .add(new SimpleRetexturableComponent(new ResourceLocation("block/oak_planks"), ModTags.SHINGLES_SUPPORT, Blocks.OAK_PLANKS))
+                .build();
+        }
+
+        return COMPONENTS;
+    }
+
+    @Override
+    public void setPlacedBy(
+      final Level worldIn, final BlockPos pos, final BlockState state, @Nullable final LivingEntity placer, final ItemStack stack)
+    {
+        super.setPlacedBy(worldIn, pos, state, placer, stack);
+
+        final CompoundTag textureData = stack.getOrCreateTagElement("textureData");
+        final BlockEntity tileEntity = worldIn.getBlockEntity(pos);
+
+        if (tileEntity instanceof MateriallyTexturedBlockEntity)
+            ((MateriallyTexturedBlockEntity) tileEntity).updateTextureDataWith(MaterialTextureData.deserializeFromNBT(textureData));
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(final @NotNull BlockPos blockPos, final @NotNull BlockState blockState)
+    {
+        return new MateriallyTexturedBlockEntity(blockPos, blockState);
+    }
+
+    @Override
+    public boolean isStairs(final BlockState other)
+    {
+        return other.getBlock() instanceof ShingleBlock shingleBlock && shingleBlock.getRegistryName().equals(getRegistryName());
+    }
+
+    @Override
+    public void resetCache()
+    {
+        fillItemGroupCache.clear();
+    }
+
+    @Override
+    public @NotNull List<ItemStack> getDrops(final @NotNull BlockState state, final @NotNull LootParams.Builder builder)
+    {
+        return BlockUtils.getMaterializedItemStack(builder);
+    }
+
+    @Override
+    public ItemStack getCloneItemStack(final BlockState state, final HitResult target, final BlockGetter world, final BlockPos pos, final Player player)
+    {
+        return BlockUtils.getMaterializedItemStack(player, world, pos);
+    }
+
+    @Override
+    public @NotNull Block getBlock()
+    {
+        return this;
+    }
+
+    @NotNull
+    public Collection<FinishedRecipe> getValidCutterRecipes() {
+        return Lists.newArrayList(
+          new FinishedDORecipe() {
+              @Override
+              public void serializeRecipeData(final @NotNull JsonObject json)
+              {
+                  json.addProperty("count", COMPONENTS.size() * 2);
+              }
+
+              @Override
+              public @NotNull ResourceLocation getId()
+              {
+                  return Objects.requireNonNull(getRegistryName(getBlock()));
+              }
+          }
+        );
+    }
+
+    @Override
+    public float getExplosionResistance(BlockState state, BlockGetter level, BlockPos pos, Explosion explosion) {
+        return getDOExplosionResistance(super::getExplosionResistance, state, level, pos, explosion);
+    }
+
+    @Override
+    public float getDestroyProgress(@NotNull BlockState state, @NotNull Player player, @NotNull BlockGetter level, @NotNull BlockPos pos) {
+        return getDODestroyProgress(super::getDestroyProgress, state, player, level, pos);
+    }
+
+    @Override
+    public SoundType getSoundType(BlockState state, LevelReader level, BlockPos pos, @Nullable Entity entity) {
+        return getDOSoundType(super::getSoundType, state, level, pos, entity);
+    }
+
+    @Override
+    public IMateriallyTexturedBlockComponent getMainComponent() {
+        return getComponents().get(0);
+    }
+
+    @Override
+    public void fillItemCategory(final @NotNull NonNullList<ItemStack> items) {
+        fillDOItemCategory(this, items, fillItemGroupCache);
+    }
+}

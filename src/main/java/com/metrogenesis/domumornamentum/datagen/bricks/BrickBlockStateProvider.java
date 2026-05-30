@@ -1,0 +1,38 @@
+package com.metrogenesis.domumornamentum.datagen.bricks;
+
+import com.metrogenesis.domumornamentum.block.ModBlocks;
+import com.metrogenesis.domumornamentum.block.decorative.BrickBlock;
+import com.metrogenesis.domumornamentum.util.Constants;
+import net.minecraft.data.DataGenerator;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.model.generators.BlockStateProvider;
+import net.minecraftforge.client.model.generators.ModelFile;
+import net.minecraftforge.common.data.ExistingFileHelper;
+import org.jetbrains.annotations.NotNull;
+
+public class BrickBlockStateProvider extends BlockStateProvider
+{
+    public BrickBlockStateProvider(DataGenerator generator, ExistingFileHelper existingFileHelper)
+    {
+        super(generator.getPackOutput(), Constants.MOD_ID, existingFileHelper);
+    }
+
+    @Override
+    protected void registerStatesAndModels()
+    {
+        ModBlocks.getInstance().getBricks().forEach(this::registerStatesAndModelsFor);
+    }
+
+    private void registerStatesAndModelsFor(final BrickBlock brickBlock) {
+        final ModelFile blockModel = models().cubeAll("block/brick/" + brickBlock.getType().getSerializedName() + "_brick", new ResourceLocation(Constants.MOD_ID, "block/brick/" + brickBlock.getType().getSerializedName()));
+        simpleBlock(brickBlock, blockModel);
+        simpleBlockItem(brickBlock, blockModel);
+    }
+
+    @NotNull
+    @Override
+    public String getName()
+    {
+        return "Brick BlockStates Provider";
+    }
+}

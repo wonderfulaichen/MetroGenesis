@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "metrogenesis_domum:block/architectscutter",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "metrogenesis_domum:block/architectscutter"
+    },
+    "facing=south": {
+      "model": "metrogenesis_domum:block/architectscutter",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "metrogenesis_domum:block/architectscutter",
+      "y": 270
+    }
+  }
+}

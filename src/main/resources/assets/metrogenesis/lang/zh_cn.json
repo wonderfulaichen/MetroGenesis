@@ -1,0 +1,21 @@
+﻿{
+  "block.MetroGenesis.town_hall": "甯傛斂鍘?,
+  "block.MetroGenesis.farm_facility": "鍐滃満",
+  "block.MetroGenesis.construction_marker": "鏂藉伐鏋?,
+  "block.MetroGenesis.construction_tape": "鏂藉伐鍥存爮",
+  "block.MetroGenesis.house": "浣忓畢",
+  "block.MetroGenesis.workshop": "宸ュ潑",
+  "block.MetroGenesis.warehouse": "浠撳簱",
+  "item.MetroGenesis.building_tool": "搂6寤虹瓚宸ュ叿",
+  "item.MetroGenesis.scan_tool": "搂b鎵弿宸ュ叿",
+  "container.MetroGenesis.town_hall": "鍩庨偊绠＄悊",
+  "container.MetroGenesis.construction_marker": "閫夋嫨寤虹瓚",
+  "itemGroup.metrogenesis": "MetroGenesis 路 鍩庨偊閲嶆瀯",
+
+  "MetroGenesis.gui.buildtool.title": "閫夋嫨寤虹瓚绫诲瀷",
+  "MetroGenesis.gui.buildtool.confirm": "纭寤洪€?,
+  "MetroGenesis.gui.buildtool.cancel": "鍙栨秷",
+
+  "MetroGenesis.gui.overview.title": "宸插畬鎴愬唴瀹规€昏",
+  "MetroGenesis.gui.overview.hint": "鐐瑰嚮浠绘剰浣嶇疆鍏抽棴"
+}

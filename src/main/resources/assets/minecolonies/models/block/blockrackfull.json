@@ -1,0 +1,4 @@
+{
+  "parent": "minecolonies:block/rack/blockrackfull",
+  "loader": "metrogenesis_domum:materially_textured"
+}

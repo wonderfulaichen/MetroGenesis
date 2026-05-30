@@ -1,0 +1,25 @@
+package com.metrogenesis.minecolonies.core.blocks.huts;
+
+import com.metrogenesis.minecolonies.api.blocks.AbstractBlockHut;
+import com.metrogenesis.minecolonies.api.colony.buildings.ModBuildings;
+import com.metrogenesis.minecolonies.api.colony.buildings.registry.BuildingEntry;
+import org.jetbrains.annotations.NotNull;
+
+/**
+ * Hut for the mechanic. No different from {@link AbstractBlockHut}
+ */
+public class BlockHutMechanic extends AbstractBlockHut<BlockHutMechanic>
+{
+    @NotNull
+    @Override
+    public String getHutName()
+    {
+        return "blockhutmechanic";
+    }
+
+    @Override
+    public BuildingEntry getBuildingEntry()
+    {
+        return ModBuildings.mechanic.get();
+    }
+}

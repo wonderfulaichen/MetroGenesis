@@ -1,0 +1,67 @@
+package com.metrogenesis.minecolonies.core.colony.buildings.modules.settings;
+
+import com.metrogenesis.blockui.Pane;
+import com.metrogenesis.blockui.controls.ButtonImage;
+import com.metrogenesis.blockui.views.BOWindow;
+import com.metrogenesis.minecolonies.api.colony.buildings.modules.ICommonSettingsModule;
+import com.metrogenesis.minecolonies.api.colony.buildings.modules.settings.ISettingKey;
+import com.metrogenesis.minecolonies.api.colony.buildings.modules.settings.ISettingsModuleView;
+import com.metrogenesis.minecolonies.api.colony.buildings.views.IBuildingView;
+import com.metrogenesis.minecolonies.core.colony.buildings.workerbuildings.BuildingBeekeeper;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+
+import java.util.List;
+
+import static com.metrogenesis.minecolonies.api.research.util.ResearchConstants.BEEKEEP_2;
+
+/**
+ * Stores the beekeeper collection setting.
+ */
+public class BeekeeperCollectionSetting extends StringSetting
+{
+    /**
+     * Cached research.
+     */
+    private boolean hasResearch;
+
+    /**
+     * Create a new string list setting.
+     *
+     * @param settings the overall list of settings.
+     */
+    public BeekeeperCollectionSetting(final String... settings)
+    {
+        super(settings);
+    }
+
+    /**
+     * Create a new string list setting.
+     *
+     * @param settings     the overall list of settings.
+     * @param currentIndex the current selected index.
+     */
+    public BeekeeperCollectionSetting(final List<String> settings, final int currentIndex)
+    {
+        super(settings, currentIndex);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    @Override
+    public void setupHandler(
+      final ISettingKey<?> key,
+      final Pane pane,
+      final ICommonSettingsModule settingsModuleView,
+      final IBuildingView building,
+      final BOWindow window)
+    {
+        hasResearch = building.getColony().getResearchManager().getResearchEffects().getEffectStrength(BEEKEEP_2) > 0;
+        pane.findPaneOfTypeByID("trigger", ButtonImage.class).setHandler(button -> settingsModuleView.trigger(key));
+    }
+
+    @Override
+    public boolean isIndexAllowed(final int index)
+    {
+        return super.isIndexAllowed(index) && (hasResearch || !getSettings().get(index).equals(BuildingBeekeeper.BOTH));
+    }
+}

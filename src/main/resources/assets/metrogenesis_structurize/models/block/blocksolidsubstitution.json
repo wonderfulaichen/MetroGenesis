@@ -1,0 +1,12 @@
+﻿{
+  "parent": "block/cube_all",
+  "textures": {
+    "particle": "block/oak_planks",
+    "down": "metrogenesis_structurize:block/blocksolidsubstitution",
+    "up": "metrogenesis_structurize:block/blocksolidsubstitution",
+    "north": "metrogenesis_structurize:block/blocksolidsubstitution",
+    "east": "metrogenesis_structurize:block/blocksolidsubstitution",
+    "south": "metrogenesis_structurize:block/blocksolidsubstitution",
+    "west": "metrogenesis_structurize:block/blocksolidsubstitution"
+  }
+}

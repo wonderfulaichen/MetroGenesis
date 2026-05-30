@@ -1,0 +1,12 @@
+package com.metrogenesis.minecolonies.api.colony.requestsystem.data;
+
+import com.metrogenesis.minecolonies.api.colony.requestsystem.request.IRequest;
+import com.metrogenesis.minecolonies.api.colony.requestsystem.resolver.IRequestResolver;
+import com.metrogenesis.minecolonies.api.colony.requestsystem.token.IToken;
+
+/**
+ * The KV-Store for the requests and their identities. Extends the {@link IIdentitiesDataStore} with {@link IToken} as key type and {@link IRequest} as value type.
+ */
+public interface IRequestResolverIdentitiesDataStore extends IIdentitiesDataStore<IToken<?>, IRequestResolver<?>>
+{
+}

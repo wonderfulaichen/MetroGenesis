@@ -1,0 +1,17 @@
+﻿{
+  "block.MetroGenesis.town_hall": "Town Hall",
+  "block.MetroGenesis.farm_facility": "Farm",
+  "block.MetroGenesis.construction_marker": "Construction Marker",
+  "block.MetroGenesis.construction_tape": "Construction Tape",
+  "block.MetroGenesis.house": "House",
+  "block.MetroGenesis.workshop": "Workshop",
+  "block.MetroGenesis.warehouse": "Warehouse",
+  "item.MetroGenesis.building_tool": "Building Tool",
+  "item.MetroGenesis.scan_tool": "Scan Tool",
+  "container.MetroGenesis.town_hall": "City Management",
+  "container.MetroGenesis.construction_marker": "Select Building",
+  "itemGroup.metrogenesis": "MetroGenesis",
+
+  "MetroGenesis.gui.overview.title": "Feature Overview",
+  "MetroGenesis.gui.overview.hint": "Click anywhere to close"
+}

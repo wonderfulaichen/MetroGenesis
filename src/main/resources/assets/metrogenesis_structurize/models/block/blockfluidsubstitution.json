@@ -1,0 +1,12 @@
+﻿{
+  "parent": "block/cube_all",
+  "textures": {
+    "particle": "block/lapis_block",
+    "down": "metrogenesis_structurize:block/blockfluidsubstitution",
+    "up": "metrogenesis_structurize:block/blockfluidsubstitution",
+    "north": "metrogenesis_structurize:block/blockfluidsubstitution",
+    "east": "metrogenesis_structurize:block/blockfluidsubstitution",
+    "south": "metrogenesis_structurize:block/blockfluidsubstitution",
+    "west": "metrogenesis_structurize:block/blockfluidsubstitution"
+  }
+}

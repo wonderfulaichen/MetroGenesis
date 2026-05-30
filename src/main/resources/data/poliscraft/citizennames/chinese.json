@@ -1,0 +1,7 @@
+{
+  "parts": 2,
+  "order": "EASTERN",
+  "male_firstname": ["Tienchen", "Yuxuan", "Haoran", "Weiming", "Xiaolong", "Junwei", "Zhiyuan", "Kaiwen", "Mingyang", "Jianhua", "Lei", "Wei", "Qiang", "Yong", "Peng", "Jun", "Bin", "Hui", "Yang", "Feng", "Chao", "Dong", "Gang", "Hao", "Long", "Ming", "Ning", "Ping", "Tao", "Xin"],
+  "female_firstname": ["Yinuo", "Xinyi", "Yuhan", "Zixuan", "Mengyao", "Xue", "Ting", "Lina", "Yan", "Fang", "Hong", "Jing", "Lan", "Mei", "Qing", "Rong", "Shuang", "Wan", "Xia", "Yue", "Zhen", "Ai", "Bao", "Chun", "Dan", "Fen", "Hua", "Jia", "Li", "Min", "Na", "Ping", "Qian", "Rui", "Shu", "Tian", "Wen", "Xian", "Ying", "Yun", "Yuan"],
+  "surnames": ["Li", "Wang", "Zhang", "Liu", "Chen", "Yang", "Zhao", "Huang", "Zhou", "Wu", "Xu", "Sun", "Hu", "Zhu", "Gao", "Lin", "He", "Guo", "Ma", "Luo", "Liang", "Song", "Zheng", "Xie", "Han", "Tang", "Feng", "Dong", "Cheng", "Cai", "Peng", "Pan", "Yuan", "Yu", "Deng", "Xu", "Fu", "Shen", "Zeng", "Peng", "Lu", "Su", "Lu", "Jia", "Ding", "Xue", "Ye", "Yan", "Yu", "Pan", "Du", "Dai", "Xia", "Tian", "Fan", "Fang"]
+}

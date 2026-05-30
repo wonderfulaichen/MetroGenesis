@@ -1,0 +1,32 @@
+package com.metrogenesis.domumornamentum.util;
+
+import net.minecraft.resources.ResourceLocation;
+
+public class Constants
+{
+
+    private Constants()
+    {
+        throw new IllegalStateException("Can not instantiate an instance of: Constants. This is a utility class");
+    }
+
+    public static final String           MOD_ID                           = "metrogenesis_domum";
+    public static final String MATERIALLY_TEXTURED_MODEL_LOADER = "materially_textured";
+    public static final String TRAPDOOR_MODEL_OVERRIDE = MOD_ID + ":trapdoor_type";
+    public static final String DOOR_MODEL_OVERRIDE = MOD_ID + ":door_type";
+    public static final String POST_MODEL_OVERRIDE = MOD_ID + ":post_type";
+    public static final String DEFAULT_LANG = "en_us";
+
+    public static ResourceLocation resLocDO(final String path)
+    {
+        return new ResourceLocation(MOD_ID, path);
+    }
+
+    public static class BlockEntityTypes
+    {
+
+        public static final String MATERIALLY_RETEXTURABLE = "materially_retexturable";
+        public static final String DYNAMIC_TIMBERFRAME = "dynamic_timberframe";
+
+    }
+}

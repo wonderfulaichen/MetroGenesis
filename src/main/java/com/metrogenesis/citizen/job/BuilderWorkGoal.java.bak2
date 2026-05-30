@@ -1,0 +1,195 @@
+package com.metrogenesis.citizen.job;
+
+import com.metrogenesis.MetroGenesis;
+import com.metrogenesis.block.construction.ConstructionMarkerBlockEntity;
+import com.metrogenesis.blueprint.v1.BlueprintIterator;
+import com.metrogenesis.citizen.CitizenData;
+import com.metrogenesis.init.BuildingType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.EnumSet;
+
+/**
+ * 寤洪€犲笀宸ヤ綔 AI 鈥?閫愬潡寤洪€犳ā寮? * <p>
+ * 鍙傝€?MineColonies {@code AbstractEntityAIStructure} + Structurize {@code StructurePlacer}銆? * <p>
+ * 鐘舵€佹満锛欼DLE 鈫?CLAIM_SITE 鈫?MOVE_TO_SITE 鈫?PLACE_BLOCKS 鈫?COMPLETE
+ * <p>
+ * 姣忎釜宸ヤ綔 tick锛氫粠 {@link ConstructionMarkerBlockEntity#getNextBlock()} 鑾峰彇涓嬩竴涓柟鍧? * 鈫?璁＄畻涓栫晫鍧愭爣 鈫?setBlock 鈫?鎺ㄨ繘杩唬鍣?鈫?鎾斁绮掑瓙/闊虫晥
+ */
+public class BuilderWorkGoal extends Goal {
+
+    private enum State { IDLE, CLAIM_SITE, MOVE_TO_SITE, PLACE_BLOCKS, COMPLETE }
+
+    private final Mob mob;
+    private ConstructionMarkerBlockEntity targetSite;
+    private State state = State.IDLE;
+    private int workTimer = 0;
+    private int scanTimer = 0;
+    private static final int SCAN_INTERVAL = 40;
+
+    // 钃濆浘閿氱偣锛氭爣璁版柟鍧椾腑蹇冨亸绉?    private BlockPos blueprintAnchor;
+
+    public BuilderWorkGoal(Mob mob) {
+        this.mob = mob;
+        this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+    }
+
+    @Override
+    public boolean canUse() {
+        if (!(mob.level() instanceof ServerLevel sl)) return false;
+        if (!isWorkHours()) return false;
+
+        if (targetSite != null && !targetSite.isCompleted() && targetSite.getProgress() < 100) {
+            return true;
+        }
+
+        scanTimer++;
+        if (scanTimer < SCAN_INTERVAL) return false;
+        scanTimer = 0;
+
+        targetSite = findUnclaimedSite(sl);
+        if (targetSite != null) {
+            state = State.CLAIM_SITE;
+            MetroGenesis.LOGGER.info("[Builder] {} 鍙戠幇鏂藉伐 site at {}",
+                    mob.getName().getString(), targetSite.getBlockPos().toShortString());
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean canContinueToUse() {
+        if (!isWorkHours()) return false;
+        if (targetSite == null || targetSite.isCompleted()) return false;
+        if (targetSite.getProgress() >= 100) return false;
+        return mob.distanceToSqr(Vec3.atCenterOf(targetSite.getBlockPos())) < 900;
+    }
+
+    @Override
+    public void start() {
+        this.workTimer = 0;
+        if (targetSite != null) {
+            targetSite.setAssignedBuilder(mob.getUUID().toString());
+            state = State.MOVE_TO_SITE;
+            moveToSite();
+        }
+    }
+
+    @Override
+    public void stop() {
+        mob.getNavigation().stop();
+        this.workTimer = 0;
+        this.state = State.IDLE;
+    }
+
+    @Override
+    public void tick() {
+        if (targetSite == null || mob.level().isClientSide()) return;
+
+        BlockPos pos = targetSite.getBuildingPos();
+
+        // 杩樺湪璧惰矾涓?        if (!mob.getNavigation().isDone()) {
+            return;
+        }
+
+        // 瀵艰埅瀹屾垚浣嗘病鍒?鈫?閲嶆柊瀵昏矾
+        if (mob.distanceToSqr(Vec3.atCenterOf(pos)) >= 12) {
+            moveToSite();
+            return;
+        }
+
+        // 宸插埌杈?鈫?寮€濮嬮€愬潡寤洪€?        mob.getNavigation().stop();
+        state = State.PLACE_BLOCKS;
+
+        workTimer++;
+        if (workTimer % 10 == 0) { // 姣?0.5 绉掓斁涓€鍧?            doBuildStep((ServerLevel) mob.level(), pos);
+        }
+    }
+
+    // 鈹€鈹€ 鏍稿績锛氶€愬潡寤洪€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+
+    /**
+     * 姣?tick 鎵ц涓€涓缓閫犳楠わ細
+     * 1. 浠?BE 鑾峰彇涓嬩竴涓鏀剧疆鐨勬柟鍧?     * 2. 璁＄畻涓栫晫鍧愭爣
+     * 3. 鏀剧疆鏂瑰潡 + 绮掑瓙鏁堟灉
+     * 4. 鏍囪宸叉斁缃?     * 5. 鏀粯鍥藉簱
+     */
+    private void doBuildStep(ServerLevel level, BlockPos markerPos) {
+        if (targetSite == null) return;
+
+        // 璁＄畻閿氱偣锛堣摑鍥句腑蹇?= 鏍囪鏂瑰潡浣嶇疆 - 鍋忕Щ锛?        if (blueprintAnchor == null) {
+            BuildingType type = com.metrogenesis.init.BuildingType.fromId(targetSite.getBuildingTypeId());
+            int radius = type != null ? type.getZoneRadius() : 3;
+            blueprintAnchor = markerPos.offset(-radius, 0, -radius);
+        }
+
+        // 鑾峰彇涓嬩竴涓鏀剧疆鐨勬柟鍧?        BlueprintIterator.PlacedBlock next = targetSite.getNextBlock();
+        if (next == null) {
+            // 鍏ㄩ儴鏀惧畬浜嗭紝鏍囪瀹屾垚
+            state = State.COMPLETE;
+            MetroGenesis.LOGGER.info("[Builder] {} 搂a瀹屾垚 搂r鏂藉伐 at {}",
+                    mob.getName().getString(), markerPos.toShortString());
+            targetSite = null;
+            blueprintAnchor = null;
+            return;
+        }
+
+        // 璁＄畻涓栫晫鍧愭爣
+        BlockPos worldPos = blueprintAnchor.offset(next.localPos());
+
+        // 鏀剧疆鏂瑰潡
+        level.setBlock(worldPos, next.state(), 3);
+
+        // 鏍囪宸叉斁缃?        targetSite.markBlockPlaced();
+
+        // 绮掑瓙鏁堟灉
+        level.sendParticles(ParticleTypes.CRIT,
+                worldPos.getX() + 0.5, worldPos.getY() + 0.5, worldPos.getZ() + 0.5,
+                3, 0.2, 0.2, 0.2, 0.05);
+
+        // 鍥藉簱鏀跺叆
+        CitizenData.payToTreasury(mob, level, 1);
+
+        MetroGenesis.LOGGER.debug("[Builder] 鏀剧疆鏂瑰潡 {} at {}", next.state().getBlock().getDescriptionId(),
+                worldPos.toShortString());
+    }
+
+    // 鈹€鈹€ 宸ュ叿鏂规硶 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+
+    private ConstructionMarkerBlockEntity findUnclaimedSite(ServerLevel level) {
+        BlockPos origin = mob.blockPosition();
+        int radius = 16;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = -5; dy <= 5; dy++) {
+                    BlockPos check = origin.offset(dx, dy, dz);
+                    BlockEntity be = level.getBlockEntity(check);
+                    if (be instanceof ConstructionMarkerBlockEntity site
+                            && !site.isCompleted()
+                            && site.getProgress() < 100) {
+                        return site;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isWorkHours() {
+        long time = mob.level().getDayTime() % 24000;
+        return time >= 6000 && time <= 18000;
+    }
+
+    private void moveToSite() {
+        if (targetSite != null) {
+            BlockPos p = targetSite.getBuildingPos();
+            mob.getNavigation().moveTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 0.5);
+        }
+    }
+}

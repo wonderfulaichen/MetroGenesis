@@ -1,0 +1,31 @@
+package com.metrogenesis.minecolonies.core.blocks.huts;
+
+import com.metrogenesis.minecolonies.api.blocks.AbstractBlockHut;
+import com.metrogenesis.minecolonies.api.colony.buildings.ModBuildings;
+import com.metrogenesis.minecolonies.api.colony.buildings.registry.BuildingEntry;
+import org.jetbrains.annotations.NotNull;
+
+/**
+ * Hut for the Smeltery. No different from {@link AbstractBlockHut}
+ */
+public class BlockHutSmeltery extends AbstractBlockHut<BlockHutSmeltery>
+{
+    public BlockHutSmeltery()
+    {
+        //No different from Abstract parent
+        super();
+    }
+
+    @NotNull
+    @Override
+    public String getHutName()
+    {
+        return "blockhutsmeltery";
+    }
+
+    @Override
+    public BuildingEntry getBuildingEntry()
+    {
+        return ModBuildings.smeltery.get();
+    }
+}

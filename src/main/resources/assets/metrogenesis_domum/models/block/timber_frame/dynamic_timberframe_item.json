@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/timber_frame/dynamic_timberframe_item_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}
