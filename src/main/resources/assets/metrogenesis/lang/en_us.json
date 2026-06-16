@@ -1,17 +1,29 @@
 ﻿{
-  "block.MetroGenesis.town_hall": "Town Hall",
-  "block.MetroGenesis.farm_facility": "Farm",
-  "block.MetroGenesis.construction_marker": "Construction Marker",
-  "block.MetroGenesis.construction_tape": "Construction Tape",
-  "block.MetroGenesis.house": "House",
-  "block.MetroGenesis.workshop": "Workshop",
-  "block.MetroGenesis.warehouse": "Warehouse",
-  "item.MetroGenesis.building_tool": "Building Tool",
-  "item.MetroGenesis.scan_tool": "Scan Tool",
-  "container.MetroGenesis.town_hall": "City Management",
-  "container.MetroGenesis.construction_marker": "Select Building",
+  "block.metrogenesis.town_hall": "Town Hall",
+  "block.metrogenesis.farm_facility": "Farm",
+  "block.metrogenesis.construction_marker": "Construction Marker",
+  "block.metrogenesis.construction_tape": "Construction Tape",
+  "block.metrogenesis.house": "House",
+  "block.metrogenesis.workshop": "Workshop",
+  "block.metrogenesis.warehouse": "Warehouse",
+  "item.metrogenesis.building_tool": "Building Tool",
+  "container.metrogenesis.town_hall": "City Management",
+  "container.metrogenesis.construction_marker": "Select Building",
   "itemGroup.metrogenesis": "MetroGenesis",
 
-  "MetroGenesis.gui.overview.title": "Feature Overview",
-  "MetroGenesis.gui.overview.hint": "Click anywhere to close"
+  "gui.metrogenesis.overview.title": "Feature Overview",
+  "gui.metrogenesis.overview.hint": "Click anywhere to close",
+
+  "item.metrogenesis.mayor_book": "Mayor's Management Book",
+  "item.metrogenesis.mayor_book.desc": "Right-click to open city management panel",
+  "gui.metrogenesis.mayor_book.title": "City Management",
+  "gui.metrogenesis.mayor_book.zones": "Districts",
+  "gui.metrogenesis.mayor_book.zone.residential": "Residential",
+  "gui.metrogenesis.mayor_book.zone.industrial": "Industrial",
+  "gui.metrogenesis.mayor_book.zone.commercial": "Commercial",
+  "gui.metrogenesis.mayor_book.zone.agriculture": "Agriculture",
+  "gui.metrogenesis.mayor_book.zone.public": "Public",
+
+  "item.metrogenesis.blueprint_eye": "Blueprint Eye",
+  "item.metrogenesis.blueprint_eye.desc": "\u00a77Left-click start \u2192 Right-click finish scan"
 }

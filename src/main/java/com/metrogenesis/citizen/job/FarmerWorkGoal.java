@@ -19,18 +19,18 @@ import net.minecraft.world.phys.Vec3;
 import java.util.EnumSet;
 
 /**
- * 鍐滃か宸ヤ綔 AI
+ // AI
  * <p>
- * 宸ヤ綔鏃堕棿锛?6:00~18:00锛夎嚜鍔ㄤ粠浜嬪啘涓氭椿鍔細
- * 1. 灏辫繎鏈変綔鐗?鈫?鍌啛
- * 2. 灏辫繎鏈夎€曞湴 鈫?绉嶅皬楹? * 3. 浠ヤ笂閮芥病鏈?鈫?鎵鹃檮杩戞潙搴勭殑閽燂紙bell锛夛紝鍘绘潙搴勭敯閲屽共娲? * 4. 杩炴潙搴勯兘娌℃湁 鈫?鎵炬偿鍦熺炕鎴愯€曞湴
- * 5. 鍟ラ兘娌℃湁 鈫?鍘熷湴鎾掔矑瀛? */
+ // 6:00 18:00
+ // 1.
+ // 2. 3. bell 4.
+ // 5. */
 public class FarmerWorkGoal extends Goal {
 
     private final Mob mob;
     private BlockPos targetPos;
-    private BlockPos villageCenter;   // 鍙戠幇鐨勬潙搴勯挓浣嶇疆
-    private boolean headingToVillage; // 姝ｅ湪璧跺線鏉戝簞
+    private BlockPos villageCenter;   // Discovered village bell position
+    private boolean headingToVillage; // //
     private int workTicks;
     private static final int SCAN_NEAR = 16;
     private static final int SCAN_VILLAGE = 64;
@@ -45,7 +45,7 @@ public class FarmerWorkGoal extends Goal {
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
-    // ══ 鏉′欢 ═════════════════════════════════════════
+    // //
 
     @Override
     public boolean canUse() {
@@ -83,11 +83,11 @@ public class FarmerWorkGoal extends Goal {
         this.workTicks = 0;
     }
 
-    // ══ 鎵ц ═════════════════════════════════════════
+    // //
 
     @Override
     public void tick() {
-        // 娌℃湁鐩爣 鈫?鍘熷湴骞茬瓑锛屽畾鏈熼噸鎵?
+        // //
         if (targetPos == null) {
             scanTimer++;
             if (scanTimer >= SCAN_INTERVAL) {
@@ -112,14 +112,14 @@ public class FarmerWorkGoal extends Goal {
             return;
         }
 
-        // 鍒拌揪鐩爣
+        // //
         if (mob.distanceToSqr(Vec3.atCenterOf(targetPos)) < 4) {
             mob.getNavigation().stop();
 
-            // 鍒氬埌鏉戝簞 鈫?灏卞湴鎵剧敯
+            // //
             if (currentMode == Mode.GO_TO_VILLAGE) {
                 headingToVillage = false;
-                targetPos = findWorkTarget(); // 閲嶆柊鍦ㄥ綋鍓嶈寖鍥存壂鎻?
+                targetPos = findWorkTarget(); // Re-scan in current range
                 if (currentMode != Mode.GO_TO_VILLAGE && targetPos != null) {
                     moveToTarget();
                 }
@@ -136,18 +136,18 @@ public class FarmerWorkGoal extends Goal {
 
     // ══ 鎵炬椿骞?═══════════════════════════════════════
 
-    /** @return 鎵惧埌鐨勫伐浣滅洰鏍囷紝鎴?null 琛ㄧず鍘熷湴骞茬瓑 */
+    /** @return Found work target, or null to idle */
     private BlockPos findWorkTarget() {
         BlockPos origin = mob.blockPosition();
         Level level = mob.level();
         BlockPos target;
 
-        // 1. 灏辫繎鏈夋湭鎴愮啛浣滅墿 鈫?鍘荤収椤?
+        // // 1.
         target = scanBlocks(origin, level, SCAN_NEAR, (state) ->
                 state.getBlock() instanceof CropBlock crop && !crop.isMaxAge(state));
         if (target != null) { currentMode = Mode.TEND_CROPS; return target; }
 
-        // 2. 灏辫繎鏈夊啘鍦鸿鏂斤紙鍫嗚偉妗讹級鈫?鍘婚偅閲屽共娲?
+        // // 2.
         target = scanBlocks(origin, level, SCAN_NEAR,
                 (state) -> state.is(MetroGenesis.FARM_FACILITY_BLOCK.get()));
         if (target != null) {
@@ -156,17 +156,17 @@ public class FarmerWorkGoal extends Goal {
             return target;
         }
 
-        // 3. 灏辫繎鏈夎€曞湴娌′綔鐗?鈫?鍘绘挱绉?
+        // // 3.
         target = scanBlocks(origin, level, SCAN_NEAR, (state) ->
                 state.is(Blocks.FARMLAND));
         if (target != null) { currentMode = Mode.PLANT_SEEDS; return target; }
 
-        // 4. 姝ｅ湪鍘绘潙搴勭殑璺笂 鈫?缁х画璧跺線鏉戝簞涓績
+        // // 4.
         if (headingToVillage && villageCenter != null) {
             return villageCenter;
         }
 
-        // 5. 鎵炬潙搴勯挓 鈫?鍘绘潙搴勭敯閲屽共娲?
+        // // 5.
         BlockPos bell = scanBlocks(origin, level, SCAN_VILLAGE,
                 (state) -> state.is(Blocks.BELL));
         if (bell != null) {
@@ -176,13 +176,13 @@ public class FarmerWorkGoal extends Goal {
             return bell;
         }
 
-        // 6. 鎵炬偿鍦熺炕鑰?
+        // 6. Find dirt to till
         target = scanBlocks(origin, level, 12, (state) ->
                 state.is(Blocks.DIRT) || state.is(Blocks.GRASS_BLOCK)
                         || state.is(Blocks.COARSE_DIRT) || state.is(BlockTags.DIRT));
         if (target != null) { currentMode = Mode.TILL_LAND; return target; }
 
-        // 7. 鍟ラ兘娌℃湁 鈫?鍘熷湴
+        // // 7.
         currentMode = Mode.IDLE;
         return null;
     }
@@ -213,7 +213,7 @@ public class FarmerWorkGoal extends Goal {
         return best;
     }
 
-    // ══ 鍏蜂綋鍐滄椿 ═════════════════════════════════════
+    // ══ Farm Work ═════════════════════════════════════
 
     private void doFarmWork() {
         Level level = mob.level();
@@ -223,16 +223,16 @@ public class FarmerWorkGoal extends Goal {
             case WORK_AT_FACILITY -> workAtFacility(level);
             case PLANT_SEEDS -> plantSeeds(level);
             case TILL_LAND -> tillLand(level);
-            case GO_TO_VILLAGE -> {} // 璧拌矾涓紝涓嶅共娲?            case IDLE -> idleWork(level);
+            case GO_TO_VILLAGE -> {} // // case IDLE idleWork(level)
         }
 
-        // 骞插畬娲昏禋 C-Value 鈫?鍏ュ浗搴?
+        // // C-Value
         if (level instanceof ServerLevel sl) {
             CitizenData.payToTreasury(mob, sl, 1);
         }
     }
 
-    /** 鍌啛闄勮繎浣滅墿 */
+    // /** */
     private void tendCrops(Level level) {
         boolean did = false;
         for (int dx = -3; dx <= 3; dx++) {
@@ -251,7 +251,7 @@ public class FarmerWorkGoal extends Goal {
         if (!did) spawnParticles(level, mob.blockPosition().above());
     }
 
-    /** 鍦ㄥ啘鍦鸿鏂芥梺骞叉椿锛堝爢鑲ョ矑瀛愶級 */
+    // /** */
     private void workAtFacility(Level level) {
         if (level instanceof ServerLevel sl) {
             // 鍫嗚偉缁胯壊绮掑瓙
@@ -261,7 +261,7 @@ public class FarmerWorkGoal extends Goal {
         }
     }
 
-    /** 鍦ㄨ€曞湴涓婄灏忛害 */
+    // /** */
     private void plantSeeds(Level level) {
         BlockPos above = targetPos.above();
         if (level.getBlockState(above).isAir()) {
@@ -272,7 +272,7 @@ public class FarmerWorkGoal extends Goal {
         }
     }
 
-    /** 缈诲湡鍙樿€曞湴 */
+    // /** */
     private void tillLand(Level level) {
         if (targetPos != null) {
             BlockState before = level.getBlockState(targetPos);
@@ -281,7 +281,7 @@ public class FarmerWorkGoal extends Goal {
         }
     }
 
-    /** 绾矑瀛愭晥鏋?*/
+    // /** */
     private void idleWork(Level level) {
         spawnParticles(level, mob.blockPosition().above());
     }
@@ -294,7 +294,7 @@ public class FarmerWorkGoal extends Goal {
         }
     }
 
-    // ══ 宸ュ叿 ═════════════════════════════════════════
+    // //
 
     private boolean isWorkHours() {
         long time = mob.level().getDayTime() % 24000;

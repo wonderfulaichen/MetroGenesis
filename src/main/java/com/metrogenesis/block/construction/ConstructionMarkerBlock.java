@@ -1,7 +1,6 @@
 package com.metrogenesis.block.construction;
 
 import com.metrogenesis.MetroGenesis;
-import com.metrogenesis.item.ScanToolItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -72,21 +71,8 @@ public class ConstructionMarkerBlock extends BaseEntityBlock {
 
         // 妫€鏌ユ墜涓槸鍚︽湁甯﹁摑鍥剧殑鎵弿宸ュ叿
         ItemStack held = player.getItemInHand(hand);
-        if (held.is(MetroGenesis.SCAN_TOOL.get()) && ScanToolItem.hasBlueprint(held)) {
-            var bp = ScanToolItem.loadBlueprint(held);
-            if (bp != null) {
-                String name = held.getTag() != null ? held.getTag().getString("blueprintName") : "unnamed";
-                if (name.isEmpty()) name = "scan_" + System.currentTimeMillis() % 10000;
+        // scan_tool 已移除，待迁移到 BlueprintEyeItem
 
-                te.loadBlueprint(bp, name);
-                player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(
-                        "搂a钃濆浘宸插姞杞? 搂e" + name + " 搂7(" + te.getBlocksTotal() + " 鏂瑰潡)"), false);
-                MetroGenesis.LOGGER.info("[Construction] 鐜╁ {} 鍔犺浇浜嗚摑鍥?'{}' 鍒版柦宸ユ灦 at {}",
-                    player.getName().getString(), name, pos.toShortString());
-                return InteractionResult.SUCCESS;
-            }
-        }
 
         // 绌烘墜鎴栨病钃濆浘 鈫?鎵撳紑 GUI
         NetworkHooks.openScreen(sp, te, buf -> buf.writeBlockPos(pos));

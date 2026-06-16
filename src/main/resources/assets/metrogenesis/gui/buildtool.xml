@@ -1,0 +1,51 @@
+<window xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="block_ui.xsd"
+        size="220 224" pause="false" lightbox="true"
+        type="default">
+
+    <!-- 主容器 -->
+    <view size="100%,100%" pos="0,0">
+
+        <!-- 标题 -->
+        <text id="title" size="160 10" pos="10 6"
+              label="" color="white"/>
+
+        <!-- 分隔线 -->
+        <box id="separator" size="204 1" pos="8 20" color="#4A5568"/>
+
+        <!-- 建筑类型 ScrollingList -->
+        <list id="buildingList" size="204 150" pos="8 24"
+              scrollbar="true">
+            <!-- 条目模板：可点击按钮覆盖整行 -->
+            <view size="100%" height="38">
+                <button id="select" size="100%,100%" pos="0 0" label=""/>
+                <text id="icon" size="22 22" pos="8 8"
+                      label="" color="#AABBCC" textalign="MIDDLE"/>
+                <text id="name" size="155 10" pos="34 4"
+                      label="" color="#D0D0D0"/>
+                <text id="desc" size="155 10" pos="34 18"
+                      label="" color="#808890"/>
+            </view>
+        </list>
+
+        <!-- 列表底部分隔线 -->
+        <box id="separator2" size="204 1" pos="8 174" color="#4A5568"/>
+
+        <!-- 变换栏 -->
+        <view id="transformBar" size="204 24" pos="8 175">
+            <button id="rotate" size="96 18" pos="0 3"
+                    label="↻ 0°" source=""/>
+            <button id="mirror" size="100 18" pos="104 3"
+                    label="↔ 关" source=""/>
+        </view>
+
+        <!-- 底栏 -->
+        <view id="bottomBar" size="204 30" pos="8 199">
+            <button id="cancel" size="90 18" pos="10 6"
+                    label="取消" source=""/>
+            <button id="confirm" size="90 18" pos="112 6"
+                    label="确认" source=""/>
+        </view>
+
+    </view>
+</window>

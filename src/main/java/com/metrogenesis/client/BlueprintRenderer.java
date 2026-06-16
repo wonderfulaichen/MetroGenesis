@@ -57,6 +57,8 @@ public class BlueprintRenderer implements AutoCloseable
      * 鍒濆鍖栭《鐐圭紦鍐诧細閬嶅巻钃濆浘鎵€鏈夋柟鍧楋紝娓叉煋鍒板悇 RenderType 鐨?BufferBuilder锛?     * 鐒跺悗涓婁紶鍒?VertexBuffer銆?     */
     private void init()
     {
+        LOGGER.info("[BlueprintRenderer] init() START: blueprint size=[{},{},{}]", blueprint.getSizeX(), blueprint.getSizeY(), blueprint.getSizeZ());
+
         final Minecraft mc = Minecraft.getInstance();
         final BlockRenderDispatcher blockRenderer = mc.getBlockRenderer();
         final RandomSource random = RandomSource.create();
@@ -83,13 +85,20 @@ public class BlueprintRenderer implements AutoCloseable
         final RenderType[] renderTypes = RenderType.chunkBufferLayers().toArray(RenderType[]::new);
 
         // 娓叉煋姣忎釜鏂瑰潡鍒板搴旂殑 BufferBuilder
+        int totalBlocks = 0;
+        int renderedBlocks = 0;
+        int skippedAir = 0;
+        int skippedInvisible = 0;
+        int failedBlocks = 0;
+
         for (final var blockInfo : blueprint.getBlockInfoAsList())
         {
+            totalBlocks++;
             BlockState state = blockInfo.state();
-            if (state == null || state.isAir()) continue;
+            if (state == null || state.isAir()) { skippedAir++; continue; }
 
             BlockPos localPos = blockInfo.pos();
-            if (state.getRenderShape() == RenderShape.INVISIBLE) continue;
+            if (state.getRenderShape() == RenderShape.INVISIBLE) { skippedInvisible++; continue; }
 
             try
             {
@@ -108,12 +117,17 @@ public class BlueprintRenderer implements AutoCloseable
             }
             catch (Exception e)
             {
-                LOGGER.warn("[BlueprintRenderer] 鏂瑰潡娓叉煋澶辫触 {}: {}", state, e.toString());
+                failedBlocks++;
+                LOGGER.warn("[BlueprintRenderer] Block render FAILED {}: {}", state, e.toString());
             }
+            renderedBlocks++;
         }
 
-        // 涓婁紶鍒?VertexBuffer
+        LOGGER.info("[BlueprintRenderer] Block iteration done. skippedAir={}, skippedInvisible={}, failed={}", skippedAir, skippedInvisible, failedBlocks);
+
+        // Upload to VertexBuffer
         vertexBuffers = VERTEX_BUFFER_FACTORY.get();
+        int totalVertices = 0;
         for (RenderType renderType : renderTypes)
         {
             BufferBuilder.RenderedBuffer rendered = bufferPack.builder(renderType).endOrDiscardIfEmpty();
@@ -128,12 +142,16 @@ public class BlueprintRenderer implements AutoCloseable
                 {
                     vb.bind();
                     vb.upload(rendered);
+                    int vc = rendered.drawState().vertexCount();
+                    totalVertices += vc;
+                    LOGGER.debug("[BlueprintRenderer] RenderType {} uploaded: {} vertices", renderType, vc);
                 }
             }
         }
         bufferPack.clearAll();
         VertexBuffer.unbind();
 
+        LOGGER.info("[BlueprintRenderer] init() DONE: {} vertex buffers, {} total vertices", vertexBuffers.size(), totalVertices);
         initialized = true;
     }
 
@@ -142,8 +160,13 @@ public class BlueprintRenderer implements AutoCloseable
      */
     public void draw(final BlockPos anchorPos, final RenderLevelStageEvent event, final float alpha)
     {
+        LOGGER.info("[BlueprintRenderer] draw() ENTER: anchorPos=({}, {}, {}), alpha={}, initialized={}, vbNull={}",
+            anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(), alpha, initialized, vertexBuffers == null);
         final Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
+        if (mc.level == null) {
+            LOGGER.warn("[BlueprintRenderer] draw() ABORT: mc.level is null");
+            return;
+        }
 
         // 棣栨鍒濆鍖栭《鐐圭紦鍐诧紙钃濆浘鏁版嵁涓嶅彉鍒欎笉澶嶅缓锛?
         if (!initialized)
@@ -152,23 +175,32 @@ public class BlueprintRenderer implements AutoCloseable
             lastGameTime = mc.level.getGameTime();
         }
 
-        if (vertexBuffers == null || vertexBuffers.isEmpty()) return;
+        if (vertexBuffers == null || vertexBuffers.isEmpty()) {
+            LOGGER.warn("[BlueprintRenderer] draw() ABORT: vertexBuffers null={}, empty={}", vertexBuffers == null, vertexBuffers != null && vertexBuffers.isEmpty());
+            return;
+        }
+        LOGGER.info("[BlueprintRenderer] draw() proceeding: vbCount={}, anchorPos=({}, {}, {})", vertexBuffers.size(), anchorPos.getX(), anchorPos.getY(), anchorPos.getZ());
 
         final PoseStack poseStack = event.getPoseStack();
         final Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        // 鍋忕Щ鍒拌摑鍥句腑蹇冧笅鏂?
-        BlockPos origin = anchorPos.subtract(
-            new BlockPos(blueprint.getSizeX() / 2, 0, blueprint.getSizeZ() / 2));
+        // anchorPos 已经是蓝图原点（角点），直接使用
+        BlockPos origin = anchorPos;
 
         Vec3 renderOffset = Vec3.atLowerCornerOf(origin).subtract(cameraPos);
         Vector3f chunkOffset = renderOffset.toVector3f();
+        LOGGER.debug("[BlueprintRenderer] draw(): origin=({}, {}, {}), cameraPos=({}, {}, {}), chunkOffset=({}, {}, {})",
+            origin.getX(), origin.getY(), origin.getZ(),
+            cameraPos.x, cameraPos.y, cameraPos.z,
+            chunkOffset.x, chunkOffset.y, chunkOffset.z);
 
         poseStack.pushPose();
-        // 娉ㄦ剰锛氫笉鍦ㄨ繖閲?translate 鈥斺€?CHUNK_OFFSET 宸插皢灞€閮ㄥ潗鏍囧亸绉诲埌姝ｇ‘涓栫晫浣嶇疆
-        // poseStack 淇濇寔浜嬩欢鍘熷鐘舵€侊紙鍚浉鏈烘棆杞級
+        // ★ 对齐 Structurize BlueprintHandler.draw():
+        // RenderLevelStageEvent 的 PoseStack 已在相机空间（-cameraPos），
+        // 需要 translate(+cameraPos) 回到世界空间，这样 chunkOffset 才能正确偏移
+        poseStack.translate(cameraPos.x, cameraPos.y, cameraPos.z);
 
-        // 鍏夌収
+        // 光照
         Lighting.setupLevel(poseStack.last().pose());
 
         Matrix4f mvMatrix = poseStack.last().pose();
@@ -201,7 +233,17 @@ public class BlueprintRenderer implements AutoCloseable
         renderType.setupRenderState();
 
         ShaderInstance shader = RenderSystem.getShader();
-        if (shader == null) return;
+        if (shader == null) {
+            LOGGER.warn("[BlueprintRenderer] renderLayer {}: shader is NULL after setupRenderState!", renderType);
+            return;
+        }
+
+        LOGGER.debug("[BlueprintRenderer] renderLayer {}: shader={}, alpha={}", renderType, shader.getName(), alpha);
+
+        // 设置 sampler 绑定（防御性，与 Structurize 保持一致）
+        for (int k = 0; k < 12; ++k) {
+            shader.setSampler("Sampler" + k, RenderSystem.getShaderTexture(k));
+        }
 
         // 璁剧疆 shader uniforms
         if (shader.MODEL_VIEW_MATRIX != null) shader.MODEL_VIEW_MATRIX.set(mvMatrix);

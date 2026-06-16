@@ -12,7 +12,7 @@
         <text id="blockcounts" size="100% 14" pos="3 29" color="white"/>
         <text id="buildings" size="100% 14" pos="3 43" color="white"/>
         <button label="$(com.metrogenesis.structurize.gui.scantool.showres)" id="showresources" pos="3 57" size="86 20"
-                     source="structurize:textures/gui/builderhut/builder_button_medium.png" textcolor="black"/>
+                     source="metrogenesis_structurize:textures/gui/builderhut/builder_button_medium.png" textcolor="black"/>
         <list id="resources" size="100% 120" pos="0 57" childspacing="-1" visible="false">
             <box size="100% 19" linewidth="1">
                 <itemicon id="resourceIcon" size="16 16" pos="1 1"/>

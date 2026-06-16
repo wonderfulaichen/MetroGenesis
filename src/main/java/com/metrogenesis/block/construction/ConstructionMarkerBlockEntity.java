@@ -7,7 +7,6 @@ import com.metrogenesis.gui.ConstructionMarkerMenu;
 import com.metrogenesis.hologram.HologramRenderer;
 import com.metrogenesis.hologram.MetroGenesisHologramMod;
 import com.metrogenesis.init.BuildingType;
-import com.metrogenesis.item.ScanToolItem;
 import com.metrogenesis.blueprint.v1.Blueprint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;

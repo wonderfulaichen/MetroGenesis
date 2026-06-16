@@ -571,6 +571,64 @@ public final class Manager
     }
 
     /**
+     * Undo the most recent non-undo operation for a player (id=-1 shortcut).
+     */
+    public static void undoLast(final Player player)
+    {
+        final List<ChangeStorage> list = changeQueue.get(player.getUUID());
+        if (list == null || list.isEmpty())
+        {
+            player.displayClientMessage(Component.translatable("structurize.gui.undoredo.undo.notfound"), false);
+            return;
+        }
+
+        for (final Iterator<ChangeStorage> it = list.iterator(); it.hasNext(); )
+        {
+            final ChangeStorage storage = it.next();
+            // 跳过已经是撤销操作的 storage
+            if (storage.getOperation().toString().indexOf(UNDO_PREFIX) != -1) continue;
+            if (storage.isDone())
+            {
+                player.displayClientMessage(Component.translatable("structurize.gui.undoredo.undo.add", storage.getOperation()), false);
+                addToQueue(new UndoOperation(player, storage));
+                it.remove();
+                return;
+            }
+        }
+
+        player.displayClientMessage(Component.translatable("structurize.gui.undoredo.undo.notfound"), false);
+    }
+
+    /**
+     * Redo the most recent undo operation for a player.
+     */
+    public static void redoLast(final Player player)
+    {
+        final List<ChangeStorage> list = changeQueue.get(player.getUUID());
+        if (list == null || list.isEmpty())
+        {
+            player.displayClientMessage(Component.translatable("structurize.gui.undoredo.redo.notfound"), false);
+            return;
+        }
+
+        for (final Iterator<ChangeStorage> iterator = list.iterator(); iterator.hasNext(); )
+        {
+            final ChangeStorage storage = iterator.next();
+            // 只处理包含 UNDO_PREFIX 的 storage（它们是 undo 的结果）
+            if (storage.getOperation().toString().indexOf(UNDO_PREFIX) == -1) continue;
+            if (storage.isDone())
+            {
+                player.displayClientMessage(Component.translatable("structurize.gui.undoredo.redo.add", storage.getOperation()), false);
+                addToQueue(new RedoOperation(player, storage));
+                iterator.remove(); // 移出队列，防止重复重做
+                return;
+            }
+        }
+
+        player.displayClientMessage(Component.translatable("structurize.gui.undoredo.redo.notfound"), false);
+    }
+
+    /**
      * Undo a change to the world made by a player.
      *
      * @param player      the player who made it.

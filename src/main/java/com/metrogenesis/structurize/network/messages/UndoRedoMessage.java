@@ -53,11 +53,25 @@ public class UndoRedoMessage implements IMessage
 
         if (undo)
         {
-            Manager.undo(ctxIn.getSender(), id);
+            if (id == -1)
+            {
+                Manager.undoLast(ctxIn.getSender());
+            }
+            else
+            {
+                Manager.undo(ctxIn.getSender(), id);
+            }
         }
         else
         {
-            Manager.redo(ctxIn.getSender(), id);
+            if (id == -1)
+            {
+                Manager.redoLast(ctxIn.getSender());
+            }
+            else
+            {
+                Manager.redo(ctxIn.getSender(), id);
+            }
         }
     }
 }

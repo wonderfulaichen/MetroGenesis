@@ -82,6 +82,18 @@ public class ChangeStorage
     }
 
     /**
+     * Add a position storage to the list. Only sets preState if not already set.
+     */
+    public void addPreviousDataForIfAbsent(final BlockPos place, final Level world)
+    {
+        blocks.computeIfAbsent(place, p -> {
+            final BlockChangeData data = new BlockChangeData();
+            data.withPreState(world.getBlockState(place)).withPreTE(world.getBlockEntity(place));
+            return data;
+        });
+    }
+
+    /**
      * Add a position storage to the list.
      *
      * @param place the place.
@@ -124,6 +136,7 @@ public class ChangeStorage
         if (iterator == null)
         {
             iterator = blocks.entrySet().iterator();
+            com.metrogenesis.MetroGenesis.LOGGER.info("Undo start: blocks={}, op={}", blocks.size(), operation.getString());
         }
 
         int count = 0;
@@ -143,6 +156,10 @@ public class ChangeStorage
             }
             world.setBlock(entry.getKey(), Blocks.COBBLESTONE.defaultBlockState(), Block.UPDATE_CLIENTS);
             world.setBlock(entry.getKey(), entry.getValue().getPreState(), Constants.UPDATE_FLAG);
+            // 强制客户端重新渲染
+            world.sendBlockUpdated(entry.getKey(),
+                Blocks.COBBLESTONE.defaultBlockState(),
+                entry.getValue().getPreState(), 3);
 
             if (entry.getValue().getPreTE() != null)
             {
@@ -181,6 +198,8 @@ public class ChangeStorage
             }
         }
         addedEntities.forEach(e -> e.remove(Entity.RemovalReason.DISCARDED));
+
+        com.metrogenesis.MetroGenesis.LOGGER.info("Undo complete: reverted {} blocks, op={}", count, operation.getString());
 
         if (undoStorage != null)
         {
@@ -257,6 +276,19 @@ public class ChangeStorage
     public boolean isDone()
     {
         return iterator == null || !iterator.hasNext();
+    }
+
+    /** 获取记录的方块数量（用于调试） */
+    public int getBlockCount() { return blocks.size(); }
+
+    /** 获取记录的方块迭代器 */
+    public java.util.Set<java.util.Map.Entry<net.minecraft.core.BlockPos, BlockChangeData>> getBlockEntrySet() {
+        return blocks.entrySet();
+    }
+
+    /** 获取记录方块包含的坐标集合 */
+    public java.util.Set<net.minecraft.core.BlockPos> getBlockPositions() {
+        return blocks.keySet();
     }
 
     /**

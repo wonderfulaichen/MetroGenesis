@@ -15,9 +15,5 @@ public class CitizenData {
     public static void payToTreasury(Entity entity, ServerLevel level, int amount) {
         ColonyState colony = ColonyState.get(level);
         colony.addToTreasury(amount);
-        // 涓汉閽卞寘 +1 鐢ㄤ簬鏄剧ず锛堥€氳繃瀹炰綋鏂规硶锛?
-        if (entity instanceof com.metrogenesis.entity.MetroGenesisCitizen c) {
-            c.setWallet(c.getWallet() + 1);
-        }
     }
 }

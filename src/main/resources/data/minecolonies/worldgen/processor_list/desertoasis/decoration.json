@@ -3,7 +3,7 @@
     {
       "blocks":[
         {
-          "Name":"structurize:blocksubstitution"
+          "Name":"metrogenesis_structurize:blocksubstitution"
         }
       ],
       "processor_type": "minecraft:block_ignore"
@@ -15,7 +15,7 @@
             "Name": "minecraft:sand"
           },
           "input_predicate": {
-            "block": "structurize:blocksolidsubstitution",
+            "block": "metrogenesis_structurize:blocksolidsubstitution",
             "predicate_type": "minecraft:block_match"
           },
           "location_predicate": {

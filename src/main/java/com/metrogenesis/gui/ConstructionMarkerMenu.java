@@ -14,10 +14,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 /**
- * 鏂藉伐鑿滃崟 鈥?鎸夐挳閫夋嫨寤虹瓚绫诲瀷
+ * 施工菜单 — 按钮选择建筑类型
  * <p>
- * 娴佺▼锛? * 1. BuildingToolItem 鍙抽敭鍦伴潰 鈫?鐩存帴寮规 GUI锛堟鏃惰繕娌℃湁 BE锛? * 2. 鐜╁鐐瑰嚮鎸夐挳閫夋嫨寤虹瓚绫诲瀷 鈫?clickMenuButton 鍦ㄦ湇鍔＄鍒涘缓鏂藉伐鏍囪
- * 3. startConstruction 鈫?zone + blueprint + 鍏ㄦ伅鎶曞奖
+ * 流程：
+ * 1. BuildingToolItem 右键地面 → 直接弹出 GUI（此时还没有 BE）
+ * 2. 玩家点击按钮选择建筑类型 → clickMenuButton 在服务端创建施工标记
+ * 3. startConstruction → zone + blueprint + 全息投影
+ * <p>
+ * Phase 0e: 改为动态列表，从 BuildingType.ALL 获取可用建筑类型
  */
 public class ConstructionMarkerMenu extends AbstractContainerMenu {
 
@@ -26,12 +30,12 @@ public class ConstructionMarkerMenu extends AbstractContainerMenu {
     private BlockPos pos;
     private ConstructionMarkerBlockEntity be;
 
-    // 瀹㈡埛绔瀯閫狅紙浠庣綉缁滃寘璇诲彇 pos锛?
+    // 客户端构造（从网络包读取 pos）
     public ConstructionMarkerMenu(int id, Inventory inv, FriendlyByteBuf buf) {
         this(id, inv, buf.readBlockPos());
     }
 
-    // 鏈嶅姟绔瀯閫狅紙鏃?BE 鈥?BuildingToolItem 棰勯€夐樁娈典娇鐢級
+    // 服务端构造（无 BE — BuildingToolItem 预选阶段使用）
     public ConstructionMarkerMenu(int id, Inventory inv, BlockPos pos) {
         super(MetroGenesis.CONSTRUCTION_MARKER_MENU.get(), id);
         this.pos = pos;
@@ -55,18 +59,22 @@ public class ConstructionMarkerMenu extends AbstractContainerMenu {
         addDataSlots(data);
     }
 
-    // ══ 鎸夐挳浜嬩欢 ═════════════════════════════════════
+    // ══ 按钮事件 ═════════════════════════════════════
 
     @Override
     public boolean clickMenuButton(Player player, int buttonId) {
-        String[] types = {"farm_facility", "town_hall"};
-        if (buttonId < 0 || buttonId >= types.length) return false;
+        // 动态列表：从 BuildingType.ALL 获取（仅 enabled 的类型）
+        var enabledTypes = com.metrogenesis.init.BuildingType.ALL.stream()
+                .filter(com.metrogenesis.init.BuildingType::isEnabled)
+                .toList();
+        if (buttonId < 0 || buttonId >= enabledTypes.size()) return false;
 
+        String typeId = enabledTypes.get(buttonId).getId();
         Level level = player.level();
         if (!level.isClientSide) {
             ConstructionMarkerBlockEntity markerBe = null;
 
-            // 濡傛灉杩樻病鏈夋柦宸ユ爣璁帮紝在 pos 处创建
+            // 如果还没有施工标记，在 pos 处创建
             if (level.getBlockEntity(pos) instanceof ConstructionMarkerBlockEntity existingBe) {
                 markerBe = existingBe;
             } else {
@@ -78,16 +86,16 @@ public class ConstructionMarkerMenu extends AbstractContainerMenu {
             }
 
             if (markerBe != null) {
-                markerBe.startConstruction(types[buttonId]);
-                // 閲嶈 data slots 涓虹湡瀹?BE 鏁版嵁锛堝悗缁?Screen 鍙锛?                addDataSlots(markerBe.getDataAccess());
+                markerBe.startConstruction(typeId);
+                addDataSlots(markerBe.getDataAccess());
                 MetroGenesis.LOGGER.info("[GUI] 玩家 {} 选择建造 {} at {}",
-                        player.getName().getString(), types[buttonId], pos.toShortString());
+                        player.getName().getString(), typeId, pos.toShortString());
             }
         }
         return true;
     }
 
-    // ══ 鏁版嵁璇诲彇锛堜緵 Screen 浣跨敤锛?═══════════════════
+    // ══ 数据读取（供 Screen 使用）════════════════════
 
     public int getProgress() { return data.get(0); }
     public boolean isCompleted() { return data.get(1) == 1; }
