@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/post/post_pinched_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

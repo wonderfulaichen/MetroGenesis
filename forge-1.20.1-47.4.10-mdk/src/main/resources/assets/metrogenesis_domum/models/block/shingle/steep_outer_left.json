@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/shingle/steep_convex_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

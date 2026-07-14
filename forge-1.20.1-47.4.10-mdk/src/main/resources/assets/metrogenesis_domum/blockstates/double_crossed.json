@@ -1,0 +1,52 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/double_crossed"
+      },
+      "when": {
+        "facing": "north"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/double_crossed"
+      },
+      "when": {
+        "facing": "east"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/double_crossed"
+      },
+      "when": {
+        "facing": "south"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/double_crossed"
+      },
+      "when": {
+        "facing": "west"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/double_crossed"
+      },
+      "when": {
+        "facing": "up"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/double_crossed"
+      },
+      "when": {
+        "facing": "down"
+      }
+    }
+  ]
+}

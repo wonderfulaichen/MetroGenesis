@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/fence_gate/fence_gate_wall_open_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

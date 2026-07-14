@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/stair/stairs_outer_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

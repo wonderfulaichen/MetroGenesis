@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "metrogenesis_domum:block/extra/light_blue_brick_extra"
+  }
+}

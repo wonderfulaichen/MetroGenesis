@@ -1,65 +1,59 @@
-# eclipse
-bin
-*.launch
-.settings
-.metadata
-.classpath
-.project
+# ===================== MetroGenesis 根级忽略 =====================
+# 参考库：304MB 只读参考模组源码，不参与版本控制（用户要求排除）
+参考/
 
-# idea
-out
-*.ipr
-*.iws
-*.iml
-.idea
-
-# gradle
-build
-.gradle
-.gradle/
-
-# IntelliJ / Trae
+# AI / IDE 工具态（自动生成，非项目源码）
+.codebuddy/
 .agents/
+.workbuddy/
 .npm-cache/
 
-# Minecraft run directory (logs, saves, config, crash reports)
-run/
+# AI 生成的图片资产（非源码，体积大）
+generated-images/
 
-# Logs and build outputs
+# 工具锁文件
+skills-lock.json
+
+# 误生成的空文件
+$null
+
+# ===================== Forge / Java 构建产物 =====================
+# 以下在 forge/.gitignore 已部分覆盖，这里兜底根级与嵌套
+build/
+.gradle/
+run/
+bin/
+out/
+*.class
+
+# ===================== IDE =====================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+*.launch
+
+# ===================== 日志 / 临时 =====================
 *.log
 *.log.gz
 build_output*.txt
 build_output*.log
 compile_errors*
 compile_out*
-BUILD_OUTPUT*
 err*.txt
 err*.log
-
-# Backup files from BOM fix
-*.bak4
-_fix_*
-
-# Temp / generated files
 temp_*
-_deep_scan.py
-extract_errors.py
-fix_line_merges.py
+_fix_*
+deep_scan.py
 scan_*
 smart_fix.py
 out_new.txt
 build_errors.txt
 build_log.txt
-
-# other
-eclipse
-/com/
-out_new.txt
-diagnosis-fix-report.md
 demo-overview.md
-deep_scan.py
-build_run.bat
-build_run.ps1
-
-# Files from Forge MDK
+diagnosis-fix-report.md
 forge*changelog.txt

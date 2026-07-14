@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/pillar/squarepillar_pillar_capital_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

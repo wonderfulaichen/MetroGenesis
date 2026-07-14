@@ -1,0 +1,40 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/pillar/squarepillar_pillar_column",
+        "uvlock": true
+      },
+      "when": {
+        "column": "pillar_column"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/pillar/squarepillar_pillar_base",
+        "uvlock": true
+      },
+      "when": {
+        "column": "pillar_base"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/pillar/squarepillar_pillar_capital",
+        "uvlock": true
+      },
+      "when": {
+        "column": "pillar_capital"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/pillar/squarepillar_full_pillar",
+        "uvlock": true
+      },
+      "when": {
+        "column": "full_pillar"
+      }
+    }
+  ]
+}

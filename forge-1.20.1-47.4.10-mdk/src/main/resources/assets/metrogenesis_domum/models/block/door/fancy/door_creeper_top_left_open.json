@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/door/fancy/door_creeper_top_left_open_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/slab/slab_bottom_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

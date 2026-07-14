@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/panel/panel_horizontally_striped_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

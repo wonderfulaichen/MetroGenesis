@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/timber_frame/horizontal_plain_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

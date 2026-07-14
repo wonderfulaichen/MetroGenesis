@@ -1,0 +1,52 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/framed"
+      },
+      "when": {
+        "facing": "north"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/framed"
+      },
+      "when": {
+        "facing": "east"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/framed"
+      },
+      "when": {
+        "facing": "south"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/framed"
+      },
+      "when": {
+        "facing": "west"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/framed"
+      },
+      "when": {
+        "facing": "up"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/framed"
+      },
+      "when": {
+        "facing": "down"
+      }
+    }
+  ]
+}

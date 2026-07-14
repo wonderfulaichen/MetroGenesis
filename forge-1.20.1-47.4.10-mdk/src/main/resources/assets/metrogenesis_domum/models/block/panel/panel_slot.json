@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/panel/panel_slot_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

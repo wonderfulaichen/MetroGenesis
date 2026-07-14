@@ -1,0 +1,60 @@
+<window xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="block_ui.xsd"
+        size="220 224" pause="false" lightbox="true"
+        type="default">
+
+    <!-- 主容器（v1.2 极深底 + 黄铜细框 + 像素角） -->
+    <view size="100%,100%" pos="0,0">
+
+        <!-- 外框：1px 黄铜细线 -->
+        <box id="frame" size="220 224" pos="0 0" linewidth="1" color="#C89B3C"/>
+
+        <!-- 四角 2x2 像素角（黄铜高光） -->
+        <box size="2 2" pos="0 0"     linewidth="1" color="#E0BE5A"/>
+        <box size="2 2" pos="218 0"   linewidth="1" color="#E0BE5A"/>
+        <box size="2 2" pos="0 222"   linewidth="1" color="#E0BE5A"/>
+        <box size="2 2" pos="218 222" linewidth="1" color="#E0BE5A"/>
+
+        <!-- 标题（黄铜色，本地化） -->
+        <text id="title" size="170 12" pos="10 7"
+              label="$(gui.metrogenesis.buildtool.title)" color="#C89B3C"/>
+
+        <!-- 分隔线：黄铜暗 -->
+        <box id="separator" size="204 1" pos="8 21" linewidth="1" color="#9C7728"/>
+
+        <!-- 建筑类型 ScrollingList -->
+        <list id="buildingList" size="204 148" pos="8 24"
+              scrollbar="true">
+            <!-- 条目模板：可点击按钮覆盖整行 -->
+            <view size="100%" height="38">
+                <button id="select" size="100%,100%" pos="0 0" label="" textcolor="#E0D8CC"/>
+                <text id="icon" size="22 22" pos="8 8"
+                      label="" color="#C89B3C" textalign="MIDDLE"/>
+                <text id="name" size="155 12" pos="34 4"
+                      label="" color="#E0D8CC"/>
+                <text id="desc" size="155 10" pos="34 19"
+                      label="" color="#9A9088"/>
+            </view>
+        </list>
+
+        <!-- 列表底部分隔线 -->
+        <box id="separator2" size="204 1" pos="8 173" linewidth="1" color="#9C7728"/>
+
+        <!-- 变换栏（旋转/镜像，黄铜文字） -->
+        <view id="transformBar" size="204 22" pos="8 174">
+            <button id="rotate" size="96 18" pos="0 2"
+                    label="\u21BB 0\u00B0" textcolor="#C89B3C" source=""/>
+            <button id="mirror" size="100 18" pos="104 2"
+                    label="\u2194 0" textcolor="#C89B3C" source=""/>
+        </view>
+
+        <!-- 底栏（取消=砖红 / 确认=工业橙，均本地化） -->
+        <view id="bottomBar" size="204 26" pos="8 197">
+            <button id="cancel" size="90 18" pos="10 4"
+                    label="$(gui.metrogenesis.buildtool.cancel)" textcolor="#A64B32" source=""/>
+            <button id="confirm" size="90 18" pos="112 4"
+                    label="$(gui.metrogenesis.buildtool.confirm)" textcolor="#D9772B" source=""/>
+        </view>
+
+    </view>
+</window>

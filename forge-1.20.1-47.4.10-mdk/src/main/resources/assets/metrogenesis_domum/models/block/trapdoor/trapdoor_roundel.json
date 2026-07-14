@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/trapdoor/trapdoor_roundel_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

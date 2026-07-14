@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/door/door_waffle_bottom_left_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

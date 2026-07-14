@@ -1,0 +1,52 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/one_crossed_rl"
+      },
+      "when": {
+        "facing": "north"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/one_crossed_rl"
+      },
+      "when": {
+        "facing": "east"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/one_crossed_rl"
+      },
+      "when": {
+        "facing": "south"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/one_crossed_rl"
+      },
+      "when": {
+        "facing": "west"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/one_crossed_rl"
+      },
+      "when": {
+        "facing": "up"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/timber_frame/one_crossed_rl"
+      },
+      "when": {
+        "facing": "down"
+      }
+    }
+  ]
+}

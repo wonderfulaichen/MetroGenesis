@@ -1,0 +1,4 @@
+{
+  "parent": "metrogenesis_domum:block/tiledpaperwall/blockpaperwall_side_off_east_spec",
+  "loader": "metrogenesis_domum:materially_textured"
+}

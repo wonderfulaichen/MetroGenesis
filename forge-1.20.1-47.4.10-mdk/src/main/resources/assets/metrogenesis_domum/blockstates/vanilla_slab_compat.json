@@ -1,0 +1,28 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/slab/top"
+      },
+      "when": {
+        "type": "top"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/slab/bottom"
+      },
+      "when": {
+        "type": "bottom"
+      }
+    },
+    {
+      "apply": {
+        "model": "metrogenesis_domum:block/slab/double"
+      },
+      "when": {
+        "type": "double"
+      }
+    }
+  ]
+}
