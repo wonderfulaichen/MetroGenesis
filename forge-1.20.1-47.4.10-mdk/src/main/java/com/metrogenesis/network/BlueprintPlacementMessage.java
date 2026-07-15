@@ -1,6 +1,7 @@
 package com.metrogenesis.network;
 
 import com.metrogenesis.MetroGenesis;
+import com.metrogenesis.colony.ColonyState;
 import com.metrogenesis.structurize.blueprints.v1.Blueprint;
 import com.metrogenesis.structurize.placement.StructurePlacementUtils;
 import com.metrogenesis.structurize.storage.StructurePacks;
@@ -30,6 +31,8 @@ public class BlueprintPlacementMessage
     private final String resourcePath;
     private final BlockPos pos;
     private final RotationMirror rotationMirror;
+    /** 建筑造价（C-Value），用于国库扣费 */
+    private final long cost;
 
     /**
      * @param blueprintName 蓝图名称（仅用于显示/日志）
@@ -37,15 +40,17 @@ public class BlueprintPlacementMessage
      * @param resourcePath  蓝图在风格包中的相对路径（如 "buildings/farm/farmer"）
      * @param pos           放置位置（世界坐标，建筑的锚点）
      * @param rotationMirror 旋转/镜像状态
+     * @param cost          建筑造价（C-Value），0 表示免费
      */
     public BlueprintPlacementMessage(String blueprintName, String packName, String resourcePath,
-                                     BlockPos pos, RotationMirror rotationMirror)
+                                     BlockPos pos, RotationMirror rotationMirror, long cost)
     {
         this.blueprintName = blueprintName;
         this.packName = packName;
         this.resourcePath = resourcePath;
         this.pos = pos;
         this.rotationMirror = rotationMirror;
+        this.cost = cost;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -59,6 +64,7 @@ public class BlueprintPlacementMessage
         buf.writeUtf(msg.resourcePath);
         buf.writeBlockPos(msg.pos);
         buf.writeInt(msg.rotationMirror.ordinal());
+        buf.writeLong(msg.cost);
     }
 
     public static BlueprintPlacementMessage decode(FriendlyByteBuf buf)
@@ -69,7 +75,8 @@ public class BlueprintPlacementMessage
         BlockPos pos = buf.readBlockPos();
         int rotOrd = buf.readInt();
         RotationMirror rotMir = RotationMirror.values()[rotOrd];
-        return new BlueprintPlacementMessage(name, pack, rp, pos, rotMir);
+        long cost = buf.readLong();
+        return new BlueprintPlacementMessage(name, pack, rp, pos, rotMir, cost);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -84,6 +91,20 @@ public class BlueprintPlacementMessage
 
             Level level = player.level();
             if (level.isClientSide) return;
+
+            // ── 国库扣费 ──
+            if (msg.cost > 0) {
+                ColonyState colony = ColonyState.get(player.serverLevel());
+                if (!colony.spend((int) msg.cost)) {
+                    player.sendSystemMessage(Component.literal(
+                        "\u00A7c资金不足！需要 " + msg.cost + " C-Value，当前国库 " + colony.getFunds() + " C-Value"));
+                    MetroGenesis.LOGGER.warn("[BlueprintPlacement] Insufficient funds for '{}': need {} have {}",
+                        msg.blueprintName, msg.cost, colony.getFunds());
+                    return;
+                }
+                MetroGenesis.LOGGER.info("[BlueprintPlacement] Charged {} C-Value for '{}', remaining {}",
+                    msg.cost, msg.blueprintName, colony.getFunds());
+            }
 
             // 1. 从 StructurePacks 加载蓝图（与图鉴预览使用相同数据源）
             final String fullPath = msg.resourcePath + ".blueprint";

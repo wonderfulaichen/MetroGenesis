@@ -132,7 +132,7 @@ sourceSets.main.java {
     exclude 'com/metrogenesis/domumornamentum/datagen/**'
     exclude 'com/metrogenesis/domumornamentum/event/**'
     // exclude 'com/metrogenesis/entity/MetroGenesisCitizen.java'
-    exclude 'com/metrogenesis/entity/client/**'
+    // exclude 'com/metrogenesis/entity/client/**'  — 已解除：CitizenRenderer.java 仅 48 行，市民生成需要渲染器
     exclude 'com/metrogenesis/job/**'
     exclude 'com/metrogenesis/network/HologramSyncPacket.java'
     exclude 'com/metrogenesis/workorder/**'

@@ -180,8 +180,10 @@ public class BuildingCatalogScanner {
         int level = extractLevel(buildingName);
         String baseName = level > 0 ? buildingName.substring(0, buildingName.length() - 1) : buildingName;
 
-        // 映射到 MetroGenesis 分类
+        // 图鉴 UI 分类（MC_TO_MG 映射）
         String category = CategoryMapper.toMetroGenesisCategory(mcCategory);
+        // MetroGenesis 自有分类：设施方块优先 → 我们的路径规则兜底
+        String mgCategory = CategoryMapper.classifyForMetroGenesis(buildingType, resourcePath);
         String descriptionKey = BuildingDescriptionProvider.getDescriptionKey(buildingType, category);
 
         return new BuildingCatalogEntry(
@@ -190,6 +192,7 @@ public class BuildingCatalogScanner {
             resourcePath,
             category,
             mcCategory,
+            mgCategory,
             size,
             new TreeSet<>(Set.of(level > 0 ? level : 1)),
             hasIcon,
@@ -323,6 +326,7 @@ public class BuildingCatalogScanner {
                     first.resourcePath(),
                     first.category(),
                     first.mcCategory(),
+                    first.mgCategory(),
                     maxSize,
                     allLevels,
                     first.hasIcon(),

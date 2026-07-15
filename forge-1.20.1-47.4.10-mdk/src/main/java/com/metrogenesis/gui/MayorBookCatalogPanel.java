@@ -41,6 +41,7 @@ import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -110,11 +111,7 @@ public class MayorBookCatalogPanel
     private int catalogCategoryIndex = -1;     // 选中的主分类索引（-1=全部）
     private int catalogSelectedIndex = -1;     // 在过滤后的蓝图列表中的选中索引
     private int catalogScrollOffset = 0;       // 列表滚动偏移
-    private int folderScrollOffset = 0;        // 文件夹树滚动偏移
-
-    // 文件夹树状态
-    private String selectedPackName = null;    // 选中的风格包名（如 "medievaloak"）
-    private String selectedSubPath = null;     // 选中的子路径（如 "agriculture"）
+    // 文件夹树状态 → 已迁移至 CatalogCategoryList
     private boolean showFolderTree = true;     // 是否显示文件夹树
 
     // 视图模式
@@ -197,6 +194,8 @@ public class MayorBookCatalogPanel
     private float previewRotY = 45f;
     /** 3D 预览垂直旋转角度（绕X轴） */
     private float previewRotX = 35f;
+    /** 当前预览的等级（多级建筑默认为最低等级） */
+    private int catalogPreviewLevel = 1;
     /** 上次用户交互预览的时间戳（毫秒），用于自动旋转暂停判定 */
     private long lastPreviewInteraction = 0L;
     /** 正在拖拽平移预览 */
@@ -207,13 +206,39 @@ public class MayorBookCatalogPanel
     private double previewDragStartX, previewDragStartY;
 
     // ════════════════════════════════════════════════════════
-    //  扫描器状态
+    //  数据管理器（扫描 / 缓存 / 查询）
     // ════════════════════════════════════════════════════════
 
-    private final BuildingCatalogScanner scanner = new BuildingCatalogScanner();
-    private Future<List<BuildingCatalogEntry>> scanFuture = null;
-    private List<BuildingCatalogEntry> allEntries = List.of();
-    private boolean scanStarted = false;
+    private final CatalogDataManager dataManager = new CatalogDataManager();
+
+    /** 中间建筑网格/列表组件（在构造函数中初始化） */
+    private CatalogBlueprintGrid blueprintGrid;
+
+    /** 左侧分类/风格包列表组件（在构造函数中初始化） */
+    private CatalogCategoryList categoryList;
+
+    /** 右侧 3D 预览组件（在构造函数中初始化） */
+    private CatalogPreviewPanel previewPanel;
+
+    /** 底部操作栏组件 */
+    private CatalogBottomBar bottomBar;
+
+    /** 蓝图选中变更回调 */
+    private void onBlueprintSelectionChanged() {
+        catalogPreviewLevel = 1;
+        cachedPreviewBp = null;
+    }
+
+    /** 分类/风格包选中变更回调 */
+    private void onCategorySelectionChanged() {
+        blueprintGrid.setSelectedIndex(-1);
+        blueprintGrid.setScrollOffset(0);
+    }
+
+    /** 预览等级变更回调 */
+    private void onPreviewLevelChanged() {
+        cachedPreviewBp = null;
+    }
 
     /** 风格包选择页面的滚动偏移 */
     private int packSelectionScrollOffset = 0;
@@ -250,6 +275,8 @@ public class MayorBookCatalogPanel
     /** 风格包封面图缓存（packName → PackIconData） */
     private static final Map<String, PackIconData> PACK_ICON_CACHE = new HashMap<>();
     private static final int CATALOG_BOTTOM_H = 28;
+    /** 左侧文件夹编辑工具栏高度（+ ✏ ✕ 按钮行） */
+    private static final int EDIT_TOOLBAR_H = 24;
 
     // 网格布局常量
     private static final int GRID_CELL_GAP = 4;      // 网格单元间距
@@ -264,6 +291,10 @@ public class MayorBookCatalogPanel
         this.height = height;
         this.font = font;
         this.owner = owner;
+        this.blueprintGrid = new CatalogBlueprintGrid(owner, font, dataManager, this::onBlueprintSelectionChanged);
+        this.categoryList = new CatalogCategoryList(owner, font, dataManager, this::onCategorySelectionChanged);
+        this.previewPanel = new CatalogPreviewPanel(owner, font, this::onPreviewLevelChanged);
+        this.bottomBar = new CatalogBottomBar(owner, font);
     }
 
     /**
@@ -282,6 +313,13 @@ public class MayorBookCatalogPanel
     public boolean isPlacementMode() { return placementMode; }
     public boolean isPlacementConfirm() { return placementConfirm; }
     public boolean isPlacementDragging() { return placementDragging; }
+
+    /**
+     * 图鉴是否正在扫描蓝图（异步加载未完成）。
+     */
+    public boolean isScanning() {
+        return dataManager.isScanning();
+    }
     public boolean isPlacementNudgeMode() { return placementNudgeMode; }
     public void togglePlacementNudgeMode() { placementNudgeMode = !placementNudgeMode; }
     public boolean isEditActive() { return editAction != EditAction.NONE; }
@@ -410,6 +448,13 @@ public class MayorBookCatalogPanel
         cachedPreviewBp = null;
     }
 
+    // ════════════════════════════════════════════════════════
+    //  数据持久化 — 客户端本地文件缓存
+    // ════════════════════════════════════════════════════════
+
+    /** 缓存文件名（保存在游戏目录 config/metrogenesis 下） */
+    // persistence moved to CatalogDataManager
+
     /**
      * 打开图鉴 — 进入图鉴模式。
      * 首次打开时触发异步扫描，之后使用缓存。
@@ -420,7 +465,7 @@ public class MayorBookCatalogPanel
         catalogMode = true;
         catalogCategoryIndex = -1;
         catalogScrollOffset = 0;
-        folderScrollOffset = 0;
+        categoryList.setScrollOffset(0);
         packSelectionScrollOffset = 0;
 
         // 恢复未完成的放置状态
@@ -433,8 +478,8 @@ public class MayorBookCatalogPanel
         else
         {
             catalogSelectedIndex = -1;
-            selectedPackName = null;
-            selectedSubPath = null;
+            categoryList.setSelectedPackName(null);
+            categoryList.setSelectedSubPath(null);
             placementMode = false;
             placementConfirm = false;
             placementTargetPos = null;
@@ -445,7 +490,7 @@ public class MayorBookCatalogPanel
         if (activePack != null && !activePack.isEmpty())
         {
             packSelectionMode = false;
-            selectedPackName = activePack;
+            categoryList.setSelectedPackName(activePack);
             MetroGenesis.LOGGER.info("[Catalog] Using persisted style pack: {}", activePack);
         }
         else
@@ -453,12 +498,8 @@ public class MayorBookCatalogPanel
             packSelectionMode = true;  // 无已选风格包时显示选择首页
         }
 
-        // 首次打开触发扫描（之后使用缓存）
-        if (!scanStarted && allEntries.isEmpty())
-        {
-            scanStarted = true;
-            scanFuture = scanner.scanAllAsync();
-        }
+        // 确保数据已加载（从缓存或异步扫描）
+        dataManager.ensureLoaded();
     }
 
     /**
@@ -466,10 +507,7 @@ public class MayorBookCatalogPanel
      */
     public void refresh()
     {
-        BuildingCatalogScanner.clearCache();
-        scanStarted = true;
-        scanFuture = scanner.scanAllAsync();
-        allEntries = List.of();
+        dataManager.refresh();
     }
 
     /**
@@ -509,7 +547,7 @@ public class MayorBookCatalogPanel
         if (!catalogMode) return;
 
         // 检查扫描结果
-        checkScanResult();
+        dataManager.tick();
 
         if (packSelectionMode)
         {
@@ -540,24 +578,6 @@ public class MayorBookCatalogPanel
     /**
      * 检查异步扫描结果。
      */
-    private void checkScanResult()
-    {
-        if (scanFuture != null && scanFuture.isDone())
-        {
-            try
-            {
-                allEntries = scanFuture.get();
-                LOGGER.info("[Catalog] Scanned {} building entries", allEntries.size());
-            }
-            catch (InterruptedException | ExecutionException e)
-            {
-                LOGGER.error("[Catalog] Scan failed: {}", e.getMessage());
-                allEntries = List.of();
-            }
-            scanFuture = null;
-        }
-    }
-
     // ════════════════════════════════════════════════════════
     //  裁剪辅助（防止列表/网格内容溢出到相邻面板）
     // ════════════════════════════════════════════════════════
@@ -619,15 +639,14 @@ public class MayorBookCatalogPanel
         }
 
         // ── 检查图鉴扫描是否完成 ──
-        final boolean scanDone = scanFuture == null || scanFuture.isDone();
-        if (!scanDone)
+        if (dataManager.isScanning())
         {
             final String scanningMsg = Language.getInstance().getOrDefault("gui.metrogenesis.catalog.003");
             owner.drawGlassText(g, scanningMsg, px + pw / 2 - font.width(scanningMsg) / 2,
                 py + ph / 2 - 16, owner.TEXT_SOFT_GOLD, alpha);
             
             // 进度条
-            float progress = scanner.getProgress();
+            float progress = dataManager.getProgress();
             int barW = pw - 80;
             int barX = px + 40;
             int barY = py + ph / 2 + 4;
@@ -766,8 +785,8 @@ public class MayorBookCatalogPanel
                 y + prevH / 2 - font.lineHeight / 2, owner.withAlpha(MGStyles.C_TEXT_BRASS, alpha), alpha);
         }
 
-        // ── 名称 ──
-        String name = pack.getName();
+        // ── 名称（本地化） ──
+        String name = ContentNameLocalizer.localizePackName(pack.getName());
         if (font.width(name) > w - 12) name = font.plainSubstrByWidth(name, w - 12);
         owner.drawGlassText(g, name, x + 6, y + prevH + 6, owner.TEXT_SOFT_GOLD, alpha);
 
@@ -893,7 +912,7 @@ public class MayorBookCatalogPanel
         g.fill(panelX + 4, panelY + 22, panelX + panelW - 4, panelY + 23, owner.withAlpha(owner.EDGE_INNER, alpha));
 
         // 检查扫描状态
-        if (scanFuture != null)
+        if (dataManager.isScanning())
         {
             renderScanningState(g, panelX, panelY, panelW, panelH, alpha);
             return;
@@ -903,33 +922,35 @@ public class MayorBookCatalogPanel
         int leftX = panelX + 4;
         int leftY = panelY + 26;
         int leftW = CATALOG_LEFT_W - 8;
-        int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4;
-        renderCatalogCategoryList(g, leftX, leftY, leftW, leftH, alpha);
+        int contentH = panelH - 30 - CATALOG_BOTTOM_H - 4 - EDIT_TOOLBAR_H;
+        categoryList.render(g, leftX, leftY, leftW, contentH, alpha);
 
         // ── 文件夹编辑工具栏 ──
-        renderEditToolbar(g, panelX, leftY + leftH + 2, CATALOG_LEFT_W, alpha);
+        renderEditToolbar(g, panelX, leftY + contentH + 2, CATALOG_LEFT_W, alpha);
 
         // 分隔线
-        g.fill(panelX + CATALOG_LEFT_W, leftY, panelX + CATALOG_LEFT_W + 1, leftY + leftH, owner.withAlpha(owner.EDGE_INNER, alpha));
+        g.fill(panelX + CATALOG_LEFT_W, leftY, panelX + CATALOG_LEFT_W + 1, leftY + contentH, owner.withAlpha(owner.EDGE_INNER, alpha));
 
         // ── 中间：蓝图网格列表 ──
         int midX = panelX + CATALOG_LEFT_W + 4;
         int midY = leftY;
         int midW = panelW - CATALOG_LEFT_W - CATALOG_PREVIEW_W - 16;
-        renderCatalogBlueprintList(g, midX, midY, midW, leftH, alpha);
+        blueprintGrid.setFilterCategoryIndex(catalogCategoryIndex);
+        blueprintGrid.render(g, midX, midY, midW, contentH, alpha);
 
         // 右侧分隔线
         int previewX = midX + midW + 4;
-        g.fill(previewX, leftY, previewX + 1, leftY + leftH, owner.withAlpha(owner.EDGE_INNER, alpha));
+        g.fill(previewX, leftY, previewX + 1, leftY + contentH, owner.withAlpha(owner.EDGE_INNER, alpha));
 
         // ── 右侧：3D 预览 ──
         int previewW = CATALOG_PREVIEW_W - 8;
-        renderCatalogPreview(g, previewX + 4, midY, previewW, leftH, alpha);
+        previewPanel.render(g, previewX + 4, midY, previewW, contentH,
+            getSelectedCatalogEntry(), alpha);
 
         // ── 底部操作栏 ──
         int bottomY = panelY + panelH - CATALOG_BOTTOM_H - 2;
         g.fill(panelX + 4, bottomY, panelX + panelW - 4, bottomY + 1, owner.withAlpha(owner.EDGE_INNER, alpha));
-        renderCatalogBottomBar(g, panelX, bottomY, panelW, alpha);
+        bottomBar.render(g, panelX, bottomY, panelW, getSelectedCatalogEntry(), alpha);
     }
 
     // ════════════════════════════════════════════════════════
@@ -1087,7 +1108,7 @@ public class MayorBookCatalogPanel
             panelY + panelH / 2 - 4, owner.TEXT_SOFT_GOLD, alpha);
 
         // 进度条
-        float progress = scanner.getProgress();
+        float progress = dataManager.getProgress();
         int barW = panelW - 40;
         int barX = panelX + 20;
         int barY = panelY + panelH / 2 + 10;
@@ -1113,10 +1134,10 @@ public class MayorBookCatalogPanel
 
         // 获取所有风格包
         final var packs = com.metrogenesis.structurize.storage.StructurePacks.getPackMetas();
-        int itemY = y + 4 - folderScrollOffset;
+        int itemY = y + 4 - 0; // folderScrollOffset removed, method migrated to CatalogCategoryList
 
         // "全部"选项
-        final boolean allSelected = (selectedPackName == null);
+        final boolean allSelected = (categoryList.getSelectedPackName() == null);
         final boolean allHover = owner.inBounds(x + 2, itemY, w - 4, CATALOG_ITEM_H);
         final int allBg = allSelected ? owner.BTN_GLASS_SEL : (allHover ? owner.BTN_GLASS_HOVER : owner.GLASS_PANEL);
         owner.fillGlassButton(g, x + 2, itemY, w - 4, CATALOG_ITEM_H, allBg, alpha);
@@ -1127,7 +1148,7 @@ public class MayorBookCatalogPanel
         }
         owner.drawGlassText(g, Language.getInstance().getOrDefault("gui.metrogenesis.catalog.032"), x + 8, itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1,
             owner.TEXT_PRIMARY, alpha);
-        final long allCount = allEntries.size();
+        final long allCount = dataManager.getAllEntries().size();
         owner.drawGlassText(g, String.valueOf(allCount), x + w - 10 - font.width(String.valueOf(allCount)),
             itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1, owner.TEXT_SECONDARY, alpha);
         itemY += CATALOG_ITEM_H + CATALOG_ITEM_GAP;
@@ -1142,7 +1163,7 @@ public class MayorBookCatalogPanel
             }
 
             final String packName = pack.getName();
-            final boolean selected = packName.equals(selectedPackName);
+            final boolean selected = packName.equals(categoryList.getSelectedPackName());
             final boolean hover = owner.inBounds(x + 2, itemY, w - 4, CATALOG_ITEM_H);
             final int bg = selected ? owner.BTN_GLASS_SEL : (hover ? owner.BTN_GLASS_HOVER : owner.GLASS_PANEL);
 
@@ -1157,14 +1178,14 @@ public class MayorBookCatalogPanel
             owner.drawGlassText(g, "\uD83D\uDCC1", x + 6, itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1,
                 owner.TEXT_PRIMARY, alpha);
 
-            // 风格包名称（截断）
-            String displayName = pack.getName();
+            // 风格包名称（截断 + 本地化）
+            String displayName = ContentNameLocalizer.localizePackName(pack.getName());
             if (displayName.length() > 14) displayName = displayName.substring(0, 12) + "..";
             owner.drawGlassText(g, displayName, x + 22, itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1,
                 owner.TEXT_PRIMARY, alpha);
 
             // 显示该包下的蓝图数量
-            final long count = allEntries.stream().filter(e -> e.packName().equals(packName)).count();
+            final long count = dataManager.getAllEntries().stream().filter(e -> e.packName().equals(packName)).count();
             final String countStr = String.valueOf(count);
             owner.drawGlassText(g, countStr, x + w - 10 - font.width(countStr),
                 itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1, owner.TEXT_SECONDARY, alpha);
@@ -1185,7 +1206,7 @@ public class MayorBookCatalogPanel
                     }
 
                     final String subPath = cat.subPath;
-                    final boolean subSelected = subPath.equals(selectedSubPath);
+                    final boolean subSelected = subPath.equals(categoryList.getSelectedSubPath());
                     final boolean subHover = owner.inBounds(x + 2, itemY, w - 4, CATALOG_ITEM_H);
                     final int subBg = subSelected ? owner.BTN_GLASS_SEL : (subHover ? owner.BTN_GLASS_HOVER : owner.GLASS_PANEL);
 
@@ -1199,14 +1220,14 @@ public class MayorBookCatalogPanel
                     owner.drawGlassText(g, "\uD83D\uDCC2", x + 18, itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1,
                         owner.TEXT_PRIMARY, alpha);
 
-                    // 子目录名称
-                    String subDisplayName = subPath;
+                    // 子目录名称（本地化）
+                    String subDisplayName = ContentNameLocalizer.localizeDirectoryName(subPath);
                     if (subDisplayName.length() > 12) subDisplayName = subDisplayName.substring(0, 10) + "..";
                     owner.drawGlassText(g, subDisplayName, x + 36, itemY + (CATALOG_ITEM_H - font.lineHeight) / 2 + 1,
                         owner.TEXT_PRIMARY, alpha);
 
                     // 显示该子目录下的蓝图数量
-                    final long subCount = allEntries.stream()
+                    final long subCount = dataManager.getAllEntries().stream()
                         .filter(e -> e.packName().equals(packName) && e.mcCategory().equals(subPath))
                         .count();
                     final String subCountStr = String.valueOf(subCount);
@@ -1394,10 +1415,10 @@ public class MayorBookCatalogPanel
     @Nullable
     private String[] getEditTargetInfo()
     {
-        if (selectedPackName != null)
+        if (categoryList.getSelectedPackName() != null)
         {
-            final String packPath = selectedSubPath != null ? selectedSubPath : "";
-            return new String[]{selectedPackName, packPath};
+            final String packPath = categoryList.getSelectedSubPath() != null ? categoryList.getSelectedSubPath() : "";
+            return new String[]{categoryList.getSelectedPackName(), packPath};
         }
         // 如果有选中蓝图，使用其包信息
         final BuildingCatalogEntry entry = getSelectedCatalogEntry();
@@ -1597,12 +1618,12 @@ public class MayorBookCatalogPanel
      */
     private void startRename()
     {
-        if (selectedSubPath != null)
+        if (categoryList.getSelectedSubPath() != null)
         {
             editAction = EditAction.RENAME_FOLDER;
-            editInputText = selectedSubPath;
-            editTargetPack = selectedPackName;
-            editTargetPath = selectedSubPath;
+            editInputText = categoryList.getSelectedSubPath();
+            editTargetPack = categoryList.getSelectedPackName();
+            editTargetPath = categoryList.getSelectedSubPath();
             editTargetIsFolder = true;
         }
         else
@@ -1630,12 +1651,12 @@ public class MayorBookCatalogPanel
      */
     private void startDelete()
     {
-        if (selectedSubPath != null)
+        if (categoryList.getSelectedSubPath() != null)
         {
             editAction = EditAction.DELETE_CONFIRM;
-            editInputText = selectedSubPath;
-            editTargetPack = selectedPackName;
-            editTargetPath = selectedSubPath;
+            editInputText = categoryList.getSelectedSubPath();
+            editTargetPack = categoryList.getSelectedPackName();
+            editTargetPath = categoryList.getSelectedSubPath();
             editTargetIsFolder = true;
         }
         else
@@ -1737,7 +1758,7 @@ public class MayorBookCatalogPanel
         int leftX = panelX + 4;
         int leftY = panelY + 26;
         int leftW = CATALOG_LEFT_W - 8;
-        int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4;
+        int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4 - EDIT_TOOLBAR_H;
 
         final int toolbarY = leftY + leftH + 2;
         final int btnSize = 18;
@@ -1835,7 +1856,7 @@ public class MayorBookCatalogPanel
         }
 
         // 检查加载状态
-        if (scanFuture != null && !scanFuture.isDone()) return false;
+        if (dataManager.isScanning()) return false;
 
         final var packs = com.metrogenesis.structurize.storage.StructurePacks.getPackMetas();
         if (packs.isEmpty()) return false;
@@ -1891,11 +1912,11 @@ public class MayorBookCatalogPanel
     private void selectPack(final String packName)
     {
         packSelectionMode = false;
-        selectedPackName = packName;
-        selectedSubPath = null;
+        categoryList.setSelectedPackName(packName);
+        categoryList.setSelectedSubPath(null);
         catalogSelectedIndex = -1;
         catalogScrollOffset = 0;
-        folderScrollOffset = 0;
+        categoryList.setScrollOffset(0);
 
         // 通知市长书：该风格包被选为城市默认风格（Phase 3 自动建造用）
         owner.setActiveStylePack(packName);
@@ -1907,8 +1928,8 @@ public class MayorBookCatalogPanel
     public void backToPackSelection()
     {
         packSelectionMode = true;
-        selectedPackName = null;
-        selectedSubPath = null;
+        categoryList.setSelectedPackName(null);
+        categoryList.setSelectedSubPath(null);
         catalogSelectedIndex = -1;
     }
 
@@ -2018,8 +2039,8 @@ public class MayorBookCatalogPanel
             // 渲染小型等轴测预览
             renderMiniPreview(g, previewX, previewY, previewW, previewH, entry, alpha);
 
-            // 名称（底部）
-            String displayName = entry.name();
+            // 名称（底部，本地化）
+            String displayName = ContentNameLocalizer.localize(entry.name());
             if (displayName.length() > 10) displayName = displayName.substring(0, 8) + "..";
             owner.drawGlassText(g, displayName, cellX + (cellW - font.width(displayName)) / 2,
                 cellY + cellH - 14, owner.TEXT_PRIMARY, alpha);
@@ -2059,8 +2080,8 @@ public class MayorBookCatalogPanel
             final int bg = selected ? owner.BTN_GLASS_SEL : (hover ? owner.BTN_GLASS_HOVER : owner.GLASS_PANEL);
             owner.fillGlassButton(g, x + 4, itemY, w - 8, itemH, bg, alpha);
 
-            // 名称
-            String displayName = entry.name();
+            // 名称（本地化）
+            String displayName = ContentNameLocalizer.localize(entry.name());
             if (displayName.length() > 20) displayName = displayName.substring(0, 18) + "..";
             owner.drawGlassText(g, displayName, x + 10, itemY + (itemH - font.lineHeight) / 2 + 1,
                 owner.TEXT_PRIMARY, alpha);
@@ -2342,10 +2363,15 @@ public class MayorBookCatalogPanel
         drawPonderCard(g, bx, by, cardW, cardH, Language.getInstance().getOrDefault("gui.metrogenesis.catalog.060"), fac, MGStyles.C_TEXT_2ND, MGStyles.C_TEXT, alpha);
         drawLeader(g, bx, by + cardH / 2, modelCx, modelCy, lineAlpha);
 
-        // 左下：等级
+        // 左下：等级（多级建筑显示可点击的等级切换按钮）
         final int cx = x + pad, cy = y + h - cardH - pad;
-        drawPonderCard(g, cx, cy, cardW, cardH, Language.getInstance().getOrDefault("gui.metrogenesis.catalog.061"), lvl, MGStyles.C_TEXT_2ND, MGStyles.C_TEXT, alpha);
-        drawLeader(g, cx + cardW, cy + cardH / 2, modelCx, modelCy, lineAlpha);
+        if (entry.isMultiLevel()) {
+            renderLevelSwitcher(g, cx, cy, cardW, cardH + 8, entry, alpha);
+            drawLeader(g, cx + cardW, cy + (cardH + 8) / 2, modelCx, modelCy, lineAlpha);
+        } else {
+            drawPonderCard(g, cx, cy, cardW, cardH, Language.getInstance().getOrDefault("gui.metrogenesis.catalog.061"), lvl, MGStyles.C_TEXT_2ND, MGStyles.C_TEXT, alpha);
+            drawLeader(g, cx + cardW, cy + cardH / 2, modelCx, modelCy, lineAlpha);
+        }
 
         // 右下：造价（强调色，经济核心）
         final int dx = x + w - cardW - pad, dy = y + h - cardH - pad;
@@ -2401,6 +2427,38 @@ public class MayorBookCatalogPanel
         }
         if (lines < 2 && !line.isEmpty()) {
             g.drawString(font, line.toString(), x + 6, ty, owner.withAlpha(MGStyles.C_TEXT, alpha), false);
+        }
+    }
+
+    /**
+     * 渲染等级切换按钮（多级建筑替换左下角静态等级卡片）。
+     * 每个等级显示为可点击的小按钮，当前预览等级高亮为黄铜色。
+     */
+    private void renderLevelSwitcher(final GuiGraphics g, final int x, final int y,
+                                      final int w, final int h, final BuildingCatalogEntry entry,
+                                      final int alpha)
+    {
+        MGStyles.drawPanel(g, x, y, w, h, MGStyles.C_BG_CARD, (alpha * 80) / 100);
+        g.drawString(font, Language.getInstance().getOrDefault("gui.metrogenesis.catalog.061"),
+            x + 6, y + 5, owner.withAlpha(MGStyles.C_TEXT_2ND, alpha), false);
+
+        final int[] lvls = entry.levels().stream().mapToInt(Integer::intValue).sorted().toArray();
+        final int btnSize = 14;
+        final int btnGap = 3;
+        final int totalW = lvls.length * btnSize + (lvls.length - 1) * btnGap;
+        int btnX = x + (w - totalW) / 2;
+        final int btnY = y + h - btnSize - 4;
+
+        for (final int lvl : lvls)
+        {
+            final boolean cur = (lvl == catalogPreviewLevel);
+            MGStyles.drawPanel(g, btnX, btnY, btnSize, btnSize,
+                cur ? MGStyles.C_BRASS : 0x66484858,
+                (alpha * (cur ? 90 : 60)) / 100);
+            g.drawString(font, String.valueOf(lvl),
+                btnX + (btnSize - font.width(String.valueOf(lvl))) / 2, btnY + 3,
+                owner.withAlpha(cur ? 0xFF1A1A1A : MGStyles.C_TEXT, alpha), false);
+            btnX += btnSize + btnGap;
         }
     }
 
@@ -2570,14 +2628,15 @@ public class MayorBookCatalogPanel
             return;
         }
 
-        owner.drawGlassText(g, entry.name(), panelX + 12, bottomY + 7, owner.TEXT_SOFT_GOLD, alpha);
+        final String localizedName = ContentNameLocalizer.localize(entry.name());
+        owner.drawGlassText(g, localizedName, panelX + 12, bottomY + 7, owner.TEXT_SOFT_GOLD, alpha);
 
         final String sizeStr = entry.sizeDisplay();
-        owner.drawGlassText(g, sizeStr, panelX + 12 + font.width(entry.name()) + 12, bottomY + 7, owner.TEXT_SECONDARY, alpha);
+        owner.drawGlassText(g, sizeStr, panelX + 12 + font.width(localizedName) + 12, bottomY + 7, owner.TEXT_SECONDARY, alpha);
 
-        // 显示风格
-        final String packStr = "[" + entry.packName() + "]";
-        owner.drawGlassText(g, packStr, panelX + 12 + font.width(entry.name()) + 12 + font.width(sizeStr) + 12,
+        // 显示风格（本地化包名）
+        final String packStr = "[" + ContentNameLocalizer.localizePackName(entry.packName()) + "]";
+        owner.drawGlassText(g, packStr, panelX + 12 + font.width(localizedName) + 12 + font.width(sizeStr) + 12,
             bottomY + 7, owner.TEXT_SECONDARY, alpha);
 
         final int placeBtnW = 60;
@@ -2693,7 +2752,10 @@ public class MayorBookCatalogPanel
     }
 
     /**
-     * 处理鼠标滚轮。返回 true 表示事件已消费。
+     * 处理鼠标滚轮 — 根据鼠标所在区域滚动对应内容：
+     * - 左侧分类列表 → 滚动 folderScrollOffset
+     * - 中间建筑网格/列表 → 滚动 catalogScrollOffset
+     * - 右侧 3D 预览 → 缩放预览
      */
     public boolean mouseScrolled(final double mx, final double my, final double delta)
     {
@@ -2710,7 +2772,36 @@ public class MayorBookCatalogPanel
             return true;
         }
 
-        // 检查是否在 3D 预览区 — 如果是则缩放预览
+        // 计算面板布局（与 renderCatalogPanel 一致）
+        int panelW = width * CATALOG_PANEL_W_RATIO_NUM / CATALOG_PANEL_W_RATIO_DEN;
+        panelW = Math.min(panelW, width - 80);
+        final int panelH = height * CATALOG_PANEL_H_RATIO_NUM / CATALOG_PANEL_H_RATIO_DEN;
+        final int panelX = (width - panelW) / 2;
+        final int panelY = (height - panelH) / 2;
+
+        final int leftX = panelX + 4;
+        final int leftY = panelY + 26;
+        final int leftW = CATALOG_LEFT_W - 8;
+        final int contentH = panelH - 30 - CATALOG_BOTTOM_H - 4 - EDIT_TOOLBAR_H;
+
+        final int midX = panelX + CATALOG_LEFT_W + 4;
+        final int midW = panelW - CATALOG_LEFT_W - CATALOG_PREVIEW_W - 16;
+
+        // 鼠标在左侧分类列表 → 滚动文件夹树
+        if (mx >= leftX && mx <= leftX + leftW && my >= leftY && my <= leftY + contentH)
+        {
+            categoryList.scroll(delta);
+            return true;
+        }
+
+        // 鼠标在中间建筑列表 → 滚动蓝图网格/列表
+        if (mx >= midX && mx <= midX + midW && my >= leftY && my <= leftY + contentH)
+        {
+            blueprintGrid.scroll(delta);
+            return true;
+        }
+
+        // 鼠标在右侧 3D 预览区 → 缩放预览
         if (!placementMode && !placementConfirm)
         {
             final int[] previewRect = getPreviewRect();
@@ -2719,7 +2810,6 @@ public class MayorBookCatalogPanel
                 final int prX = previewRect[0], prY = previewRect[1], prW = previewRect[2], prH = previewRect[3];
                 if (mx >= prX && mx <= prX + prW && my >= prY && my <= prY + prH)
                 {
-                    // 预览区缩放
                     final float zoomStep = 0.1f;
                     previewZoom = Math.max(0.2f, Math.min(3f, previewZoom + (float) (delta * zoomStep)));
                     lastPreviewInteraction = System.currentTimeMillis();
@@ -2728,15 +2818,7 @@ public class MayorBookCatalogPanel
             }
         }
 
-        // 根据视图模式计算滚动步长
-        final int scrollStep = switch (viewMode)
-        {
-            case LARGE_ICONS -> 80 + GRID_CELL_GAP;
-            case SMALL_ICONS -> 40 + GRID_CELL_GAP;
-            case LIST -> 20 + 2;
-        };
-        catalogScrollOffset = Math.max(0, catalogScrollOffset - (int) (delta * scrollStep));
-        return true;
+        return false;
     }
 
     /**
@@ -2854,14 +2936,13 @@ public class MayorBookCatalogPanel
             return true;
         }
 
-        // 视图模式切换按钮
+        // 视图模式切换按钮（同步到 blueprintGrid）
         int modeBtnX = panelX + panelW - 90;
-        for (final ViewMode mode : ViewMode.values())
+        for (final var mode : CatalogBlueprintGrid.ViewMode.values())
         {
             if (owner.inBounds(modeBtnX, panelY + 3, 14, 14))
             {
-                viewMode = mode;
-                catalogScrollOffset = 0;
+                blueprintGrid.setViewMode(mode);
                 return true;
             }
             modeBtnX += 18;
@@ -2883,133 +2964,32 @@ public class MayorBookCatalogPanel
             return true;
         }
 
-        // 左侧文件夹树点击
+        // 左侧文件夹树点击（委托给 categoryList）
         final int leftX = panelX + 4;
         final int leftY = panelY + 26;
         final int leftW = CATALOG_LEFT_W - 8;
-        final int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4;
-        if (mx >= leftX && mx <= leftX + leftW && my >= leftY && my <= leftY + leftH)
+        final int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4 - EDIT_TOOLBAR_H;
+
+        if (categoryList.mouseClicked(mx, my, leftX, leftY, leftW, leftH))
         {
-            final var packs = com.metrogenesis.structurize.storage.StructurePacks.getPackMetas();
-            int itemY = leftY + 4 - folderScrollOffset;
-
-            // 检查"全部"选项
-            if (owner.inBounds(leftX + 2, itemY, leftW - 4, CATALOG_ITEM_H))
-            {
-                selectedPackName = null;
-                selectedSubPath = null;
-                catalogSelectedIndex = -1;
-                catalogScrollOffset = 0;
-                return true;
-            }
-            itemY += CATALOG_ITEM_H + CATALOG_ITEM_GAP;
-
-            // 检查风格包列表
-            for (final var pack : packs)
-            {
-                if (owner.inBounds(leftX + 2, itemY, leftW - 4, CATALOG_ITEM_H))
-                {
-                    final String packName = pack.getName();
-                    if (packName.equals(selectedPackName))
-                    {
-                        // 点击已选中的包 → 取消选中
-                        selectedPackName = null;
-                        selectedSubPath = null;
-                    }
-                    else
-                    {
-                        // 点击未选中的包 → 选中
-                        selectedPackName = packName;
-                        selectedSubPath = null;
-                    }
-                    catalogSelectedIndex = -1;
-                    catalogScrollOffset = 0;
-                    return true;
-                }
-                itemY += CATALOG_ITEM_H + CATALOG_ITEM_GAP;
-
-                // 如果选中了这个包，检查子目录
-                if (pack.getName().equals(selectedPackName))
-                {
-                    final var categories = com.metrogenesis.structurize.storage.StructurePacks.getCategories(pack.getName(), "");
-                    for (final var cat : categories)
-                    {
-                        if (owner.inBounds(leftX + 2, itemY, leftW - 4, CATALOG_ITEM_H))
-                        {
-                            selectedSubPath = cat.subPath;
-                            catalogSelectedIndex = -1;
-                            catalogScrollOffset = 0;
-                            return true;
-                        }
-                        itemY += CATALOG_ITEM_H + CATALOG_ITEM_GAP;
-                    }
-                }
-            }
             return true;
         }
 
-        // 中间蓝图列表/网格点击
+        // 中间蓝图列表/网格点击（委托给 blueprintGrid）
+        blueprintGrid.setFilterCategoryIndex(catalogCategoryIndex);
         final int midX = panelX + CATALOG_LEFT_W + 4;
         final int midY = leftY;
         final int midW = panelW - CATALOG_LEFT_W - CATALOG_PREVIEW_W - 16;
+        final int gridH = leftH;
 
-        if (mx >= midX && mx <= midX + midW && my >= midY && my <= midY + leftH)
+        if (blueprintGrid.mouseClicked(mx, my, 0, midX, midY, midW, gridH))
         {
-            String selectedCat = CategoryMapper.getCategoryByIndex(catalogCategoryIndex);
-            final List<BuildingCatalogEntry> entries = getEntriesForCategory(selectedCat);
-
-            final int gridStartY = midY + 20;
-
-            // 根据视图模式计算点击位置
-            switch (viewMode)
-            {
-                case LARGE_ICONS, SMALL_ICONS ->
-                {
-                    final int cellW = (viewMode == ViewMode.LARGE_ICONS) ? 80 : 40;
-                    final int cellH = (viewMode == ViewMode.LARGE_ICONS) ? 80 : 40;
-                    int availableW = midW - 8;
-                    int cols = Math.max(1, availableW / (cellW + GRID_CELL_GAP));
-
-                    for (int i = 0; i < entries.size(); i++)
-                    {
-                        int row = i / cols;
-                        int col = i % cols;
-
-                        int cellX = midX + 4 + col * (cellW + GRID_CELL_GAP);
-                        int cellY = gridStartY + row * (cellH + GRID_CELL_GAP) - catalogScrollOffset;
-
-                        if (owner.inBounds(cellX, cellY, cellW, cellH))
-                        {
-                            catalogSelectedIndex = i;
-                            return true;
-                        }
-                    }
-                }
-                case LIST ->
-                {
-                    final int itemH = 20;
-                    final int itemGap = 2;
-
-                    for (int i = 0; i < entries.size(); i++)
-                    {
-                        int itemY = gridStartY + i * (itemH + itemGap) - catalogScrollOffset;
-
-                        if (owner.inBounds(midX + 4, itemY, midW - 8, itemH))
-                        {
-                            catalogSelectedIndex = i;
-                            return true;
-                        }
-                    }
-                }
-            }
             return true;
         }
 
         // 底部操作栏 — 放置按钮
         final int bottomY = panelY + panelH - CATALOG_BOTTOM_H - 2;
-        final int placeBtnW = 60;
-        final int placeBtnX = panelX + panelW - placeBtnW - 16;
-        if (owner.inBounds(placeBtnX, bottomY + 3, placeBtnW, 20))
+        if (bottomBar.isPlaceButtonClicked(mx, my, panelX, bottomY, panelW))
         {
             if (getSelectedCatalogEntry() != null)
             {
@@ -3022,6 +3002,39 @@ public class MayorBookCatalogPanel
                 }
             }
             return true;
+        }
+
+        // ── 等级切换按钮点击（位于预览区左下角） ──
+        if (button == 0) {
+            final int[] pr = getPreviewRect();
+            if (pr != null) {
+                final BuildingCatalogEntry lvlEntry = getSelectedCatalogEntry();
+                if (lvlEntry != null && lvlEntry.isMultiLevel()) {
+                    final int glassX = pr[0], glassY = pr[1], glassW = pr[2], glassH = pr[3];
+                    final int pad = 6, cardW = 94, cardH = 34;
+                    final int cx = glassX + 10;  // glassX + 4 + pad
+                    final int cy = glassY + glassH - 44;  // glassY+4 + (glassH-8) - cardH - pad
+                    final int switchH = cardH + 8;
+                    final int[] lvls = lvlEntry.levels().stream().mapToInt(Integer::intValue).sorted().toArray();
+                    final int btnSize = 14, btnGap = 3;
+                    final int totalW = lvls.length * btnSize + (lvls.length - 1) * btnGap;
+                    final int startBtnX = cx + (cardW - totalW) / 2;
+                    final int startBtnY = cy + switchH - btnSize - 4;
+                    for (int i = 0; i < lvls.length; i++) {
+                        int bx = startBtnX + i * (btnSize + btnGap);
+                        if (mx >= bx && mx <= bx + btnSize && my >= startBtnY && my <= startBtnY + btnSize) {
+                            if (lvls[i] != catalogPreviewLevel) {
+                                catalogPreviewLevel = lvls[i];
+                                cachedPreviewBp = null;
+                                if (placementMode && placementTargetPos != null) {
+                                    updateGhostPreview();
+                                }
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
         }
 
         // ── 右侧 3D 预览区 — 左键拖拽平移，右键拖拽旋转 ──
@@ -3066,7 +3079,7 @@ public class MayorBookCatalogPanel
         final int panelY = (height - panelH) / 2;
 
         int leftY = panelY + 26;
-        int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4;
+        int leftH = panelH - 30 - CATALOG_BOTTOM_H - 4 - EDIT_TOOLBAR_H;
         int midX = panelX + CATALOG_LEFT_W + 4;
         int midW = panelW - CATALOG_LEFT_W - CATALOG_PREVIEW_W - 16;
         int previewX = midX + midW + 4;
@@ -3209,7 +3222,8 @@ public class MayorBookCatalogPanel
                 entry.packName(),
                 entry.resourcePath(),
                 finalPos,
-                rot
+                rot,
+                entry.materialCost()
             )
         );
         removeGhostPreview();
@@ -3222,25 +3236,25 @@ public class MayorBookCatalogPanel
 
     /**
      * 获取当前选中文件夹下的图鉴条目。
-     * 根据 selectedPackName 和 selectedSubPath 过滤。
+     * 根据 categoryList.getSelectedPackName() 和 categoryList.getSelectedSubPath() 过滤。
      */
     private List<BuildingCatalogEntry> getEntriesForCategory(final String category)
     {
         // 如果选中了特定文件夹，按文件夹过滤
-        if (selectedPackName != null)
+        if (categoryList.getSelectedPackName() != null)
         {
-            if (selectedSubPath != null)
+            if (categoryList.getSelectedSubPath() != null)
             {
                 // 选中了子目录：按 pack + subPath 过滤
-                return allEntries.stream()
-                    .filter(e -> e.packName().equals(selectedPackName) && e.mcCategory().equals(selectedSubPath))
+                return dataManager.getAllEntries().stream()
+                    .filter(e -> e.packName().equals(categoryList.getSelectedPackName()) && e.mcCategory().equals(categoryList.getSelectedSubPath()))
                     .collect(Collectors.toList());
             }
             else
             {
                 // 选中了风格包：按 pack 过滤
-                return allEntries.stream()
-                    .filter(e -> e.packName().equals(selectedPackName))
+                return dataManager.getAllEntries().stream()
+                    .filter(e -> e.packName().equals(categoryList.getSelectedPackName()))
                     .collect(Collectors.toList());
             }
         }
@@ -3248,9 +3262,9 @@ public class MayorBookCatalogPanel
         // 否则使用分类过滤（兼容旧逻辑）
         if (CategoryMapper.isAllCategory(category))
         {
-            return allEntries;
+            return dataManager.getAllEntries();
         }
-        return allEntries.stream()
+        return dataManager.getAllEntries().stream()
             .filter(e -> e.category().equals(category))
             .collect(Collectors.toList());
     }
@@ -3262,16 +3276,28 @@ public class MayorBookCatalogPanel
     @Nullable
     private Blueprint loadBlueprintForPreview(final BuildingCatalogEntry entry)
     {
+        return loadBlueprintForPreview(entry, catalogPreviewLevel);
+    }
+
+    /**
+     * 加载指定等级的蓝图用于预览。
+     * 多级建筑将 resourcePath 末尾的数字替换为指定等级。
+     */
+    @Nullable
+    private Blueprint loadBlueprintForPreview(final BuildingCatalogEntry entry, final int level)
+    {
         try
         {
-            // resourcePath 是相对于包根目录的路径（不含 .blueprint 后缀）
-            // StructurePacks.getBlueprint(packName, relativePath) 需要完整的相对路径
-            final String relativePath = entry.resourcePath() + ".blueprint";
+            String resourcePath = entry.resourcePath();
+            if (entry.isMultiLevel()) {
+                resourcePath = resourcePath.replaceAll("\\d+$", String.valueOf(level));
+            }
+            final String relativePath = resourcePath + ".blueprint";
             return StructurePacks.getBlueprint(entry.packName(), relativePath, true);
         }
         catch (Exception e)
         {
-            LOGGER.debug("[Catalog] Failed to load blueprint '{}': {}", entry.name(), e.getMessage());
+            LOGGER.debug("[Catalog] Failed to load blueprint '{}' level {}: {}", entry.name(), level, e.getMessage());
             return null;
         }
     }
@@ -3282,13 +3308,6 @@ public class MayorBookCatalogPanel
     @Nullable
     private BuildingCatalogEntry getSelectedCatalogEntry()
     {
-        if (catalogSelectedIndex < 0) return null;
-        String selectedCat = CategoryMapper.getCategoryByIndex(catalogCategoryIndex);
-        final List<BuildingCatalogEntry> entries = getEntriesForCategory(selectedCat);
-        if (catalogSelectedIndex >= 0 && catalogSelectedIndex < entries.size())
-        {
-            return entries.get(catalogSelectedIndex);
-        }
-        return null;
+        return blueprintGrid.getSelectedEntry();
     }
 }

@@ -2,6 +2,8 @@ package com.metrogenesis;
 
 import com.mojang.logging.LogUtils;
 import com.metrogenesis.command.CValueCommand;
+import com.metrogenesis.core.economy.CValueCalculatorV3;
+import com.metrogenesis.core.economy.CValueRegistry;
 import com.metrogenesis.core.economy.EconomyEngine;
 import com.metrogenesis.core.economy.EconomySavedData;
 import com.metrogenesis.entity.RtsCameraEntity;
@@ -230,17 +232,25 @@ public class MetroGenesis {
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("metrogenesis server starting");
 
-        // 初始化经济引擎（从持久化恢复或新建）
         final ServerLevel overworld = event.getServer().getLevel(ServerLevel.OVERWORLD);
-        if (overworld != null)
-        {
-            final EconomyEngine economy = EconomyEngine.getOrCreate(overworld);
-            LOGGER.info("[Economy] Engine initialized (day={})", economy.getDayCounter());
+        if (overworld == null) { RoadPipelineController.init(); return; }
 
-            // 初始化部门管理器（自动注册 5 个默认部门并从持久化恢复数据）
-            DepartmentManager.getOrCreate(overworld);
-            LOGGER.info("[Gov] Department system initialized");
-        }
+        // ══ ① 播种基准值 + 加载玩家自定义 + 配方推算（必须先于经济引擎初始化） ══
+        CValueRegistry.registerDefaults();
+        com.metrogenesis.core.economy.CValueConfigLoader.loadOverrides();
+        CValueCalculatorV3.calculate(
+            event.getServer().getRecipeManager(),
+            event.getServer().registryAccess());
+        LOGGER.info("[C-Value] {} items registered in CValueRegistry", CValueRegistry.size());
+
+        // ══ ② 经济引擎（从 CValueRegistry 播种所有物品） ══
+        final EconomyEngine economy = EconomyEngine.getOrCreate(overworld);
+        LOGGER.info("[Economy] Engine initialized (day={}) with {} items",
+            economy.getDayCounter(), CValueRegistry.size());
+
+        // ══ ③ 部门管理器 ══
+        DepartmentManager.getOrCreate(overworld);
+        LOGGER.info("[Gov] Department system initialized");
 
         RoadPipelineController.init();
     }
@@ -314,6 +324,9 @@ public class MetroGenesis {
                 final ServerLevel overworld = server.getLevel(ServerLevel.OVERWORLD);
                 if (overworld != null) {
                     com.metrogenesis.colony.ColonyState.get(overworld).tick(overworld);
+
+                    // ══ F3: 区划逐 tick 建筑放置 ══
+                    com.metrogenesis.construction.ZoneBuilder.getInstance().tick(overworld);
                 }
             }
 
@@ -339,6 +352,8 @@ public class MetroGenesis {
         public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
             event.registerEntityRenderer(RTS_CAMERA.get(), com.metrogenesis.client.RtsCameraEntityRenderer::new);
             LOGGER.info("metrogenesis → RTS camera renderer registered");
+            event.registerEntityRenderer(CITIZEN_ENTITY.get(), com.metrogenesis.entity.client.CitizenRenderer::new);
+            LOGGER.info("metrogenesis → Citizen renderer registered");
         }
     }
 

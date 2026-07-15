@@ -375,13 +375,25 @@ public class MayorBookScreen extends Screen {
 
     /**
      * 保存选中的风格包到城市状态。
+     * <p>
+     * 通过 {@link FoundCityMessage} 发往服务端，确保 {@link ColonyState#setDirty}
+     * 在服务端线程调用，避免客户端直接修改 SavedData 的线程安全问题导致持久化失败。
      */
     public void setActiveStylePack(String packName) {
         if (colonyState != null) {
-            colonyState.setActiveStylePack(packName);
+            colonyState.setActiveStylePack(packName); // 客户端立即生效（UI 反馈）
             needsStylePackSelection = false;
             MetroGenesis.LOGGER.info("[StylePack] Set active style pack: {}", packName);
-            
+
+            // 发往服务端确保持久化（FoundCityMessage 内部调用 state.setActiveStylePack + setDirty）
+            String currentName = nameBuffer != null ? nameBuffer.toString().trim() : "";
+            if (currentName.isEmpty()) {
+                String cn = colonyState.getCityName();
+                if (!cn.equals("未命名") && !cn.equals("新城邦")) currentName = cn;
+            }
+            com.metrogenesis.network.NetworkHandler.CHANNEL.sendToServer(
+                new com.metrogenesis.network.FoundCityMessage(currentName, packName));
+
             // 选择风格包后关闭图鉴面板，返回城市管理模式
             if (catalogPanel != null) {
                 catalogPanel.close();
@@ -496,6 +508,37 @@ public class MayorBookScreen extends Screen {
             }
         } catch (Exception e) {
             MetroGenesis.LOGGER.error("Failed to save zones", e);
+        }
+    }
+
+    /**
+     * G 键触发：提交所有待建区划到服务端启动生长。
+     * <p>
+     * 遍历 {@link #zoneRects}，将处于 {@code PLANNING} / {@code PENDING} 的区划
+     * 前置到 {@code PENDING} 阶段，通过 {@link com.metrogenesis.network.RequestZoneGrowthMessage}
+     * 逐一发往服务端 {@link com.metrogenesis.construction.ZoneBuilder#startGrowth}。
+     */
+    private void sendPendingZonesForGrowth() {
+        if (minecraft.getSingleplayerServer() == null && minecraft.getConnection() == null) return;
+
+        int sentCount = 0;
+        for (ZoneRect zone : zoneRects) {
+            int stage = zone.stage();
+            if (stage >= ZoneRect.STAGE_BUILDING) continue; // 已在建或已完成
+
+            // 前置到 PENDING
+            if (stage < ZoneRect.STAGE_PENDING) {
+                zone.setStage(ZoneRect.STAGE_PENDING);
+            }
+
+            com.metrogenesis.network.NetworkHandler.CHANNEL.sendToServer(
+                new com.metrogenesis.network.RequestZoneGrowthMessage(zone));
+            sentCount++;
+        }
+
+        if (sentCount > 0) {
+            saveZonesToWorld();
+            MetroGenesis.LOGGER.info("[MayorBook] Sent {} zone(s) to server for growth", sentCount);
         }
     }
 
@@ -761,6 +804,14 @@ public class MayorBookScreen extends Screen {
         if (deptPanel != null && deptPanel.isVisible()) {
             deptPanel.render(g, mx, my, partialTick, alpha, this);
             return;
+        }
+
+        // ══ 扫描中：在城市场景上覆盖半透明遮罩，提示用户等待 ══
+        final boolean scanning = catalogPanel != null && catalogPanel.isScanning();
+        if (scanning) {
+            fillGlassPanel(g, 0, 0, width, height - BOTTOM_BAR_H, BTN_GLASS, (int)(alpha * 0.55f));
+            String loadingMsg = Language.getInstance().getOrDefault("gui.metrogenesis.catalog.003");
+            drawGlassText(g, loadingMsg, 10, height - BOTTOM_BAR_H - 20, TEXT_SOFT_GOLD, alpha);
         }
 
         // 正常城市管理模式
@@ -2026,6 +2077,12 @@ public class MayorBookScreen extends Screen {
             return true;
         }
 
+        // G 键（区域模式下）：提交待建区划启动生长生长
+        if (keyCode == GLFW.GLFW_KEY_G && zoneMode) {
+            sendPendingZonesForGrowth();
+            return true;
+        }
+
         // G 键：切换部门面板（放置/图鉴/需求/道路/区域模式禁用）
         if (keyCode == GLFW.GLFW_KEY_G
             && !roadMode && !zoneMode && !showingDemands
@@ -2159,6 +2216,14 @@ public class MayorBookScreen extends Screen {
             if (inBounds(nameConfirmBounds[0], nameConfirmBounds[1], nameConfirmBounds[2], nameConfirmBounds[3])) { commitName(); return true; }
             if (inBounds(nameCancelBounds[0], nameCancelBounds[1], nameCancelBounds[2], nameCancelBounds[3])) { editingName = false; return true; }
             return true; // 点击输入框或其他区域：保持在编辑态
+        }
+
+        // ══ 扫描中保护：图鉴正在加载蓝图时，只允许图鉴面板自身的点击 ══
+        if (catalogPanel != null && catalogPanel.isScanning()) {
+            if (catalogPanel.mouseClicked(mx, my, button)) {
+                return true; // 图鉴面板内的点击（选风格包/刷新）正常处理
+            }
+            return true; // 扫描期间阻止所有其他 UI 交互（地图、需求、道路、区域等）
         }
 
         // 部门面板点击（优先处理，防止穿透）

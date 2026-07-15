@@ -11,15 +11,19 @@ import java.util.TreeSet;
  * 设计原则：
  * <ul>
  *   <li>{@code packName} + {@code resourcePath} 可直接调用 StructurePacks.getBlueprint() 加载蓝图</li>
- *   <li>{@code mcCategory} 保留殖民地原始目录名，后续接入殖民地建造系统时可直接使用</li>
- *   <li>{@code category} 是 MetroGenesis 的分类，对玩家透明</li>
+ *   <li>{@code mcCategory} 保留殖民地原始目录名，仅用于向后兼容的 UI 显示（目录图标等）</li>
+ *   <li>{@code category} 是 MC_TO_MG 映射的分类，仅用于图鉴 UI 展示（分类 tab）</li>
+ *   <li>{@code mgCategory} <b>是 MetroGenesis 自己的分类，用于区划自动生长等核心逻辑</b>：
+ *     扫描时优先按 {@code buildingType}（设施方块）匹配，无设施方块则按我们的路径规则分类。
+ *     不依赖 MineColonies 的目录结构。</li>
  * </ul>
  *
  * @param name         显示名（从文件名提取，如 "farmer", "townhall"）
  * @param packName     结构包名（如 "medievaloak", "colonial", "shire"）
  * @param resourcePath 包内相对路径（如 "agriculture/horticulture/farmer"）
- * @param category     MetroGenesis 分类（如 "生产建筑", "住宅"）
- * @param mcCategory   殖民地原始目录名（如 "agriculture", "fundamentals"）
+ * @param category     图鉴 UI 分类（MC_TO_MG 映射，用于 catalog tab 显示）
+ * @param mcCategory   殖民地原始目录名（如 "agriculture", "fundamentals"），仅引用
+ * @param mgCategory   <b>MetroGenesis 自有分类</b>（如 "农业", "商业"），用于区划生长等核心逻辑
  * @param size         建筑尺寸（x=宽, y=高, z=深）
  * @param levels       可用等级集合（如 {1,2,3,4,5}），单级建筑为 {1}
  * @param hasIcon      是否有图标（icon.png）
@@ -34,6 +38,7 @@ public record BuildingCatalogEntry(
     String resourcePath,
     String category,
     String mcCategory,
+    String mgCategory,
     BlockPos size,
     Set<Integer> levels,
     boolean hasIcon,
@@ -47,10 +52,10 @@ public record BuildingCatalogEntry(
      */
     public static BuildingCatalogEntry single(
         String name, String packName, String resourcePath,
-        String category, String mcCategory, BlockPos size, boolean hasIcon
+        String category, String mcCategory, String mgCategory, BlockPos size, boolean hasIcon
     ) {
         return new BuildingCatalogEntry(
-            name, packName, resourcePath, category, mcCategory, size,
+            name, packName, resourcePath, category, mcCategory, mgCategory, size,
             new TreeSet<>(Set.of(1)), hasIcon,
             "", false, 0L, ""
         );

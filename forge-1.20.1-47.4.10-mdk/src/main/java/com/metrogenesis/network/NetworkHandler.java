@@ -53,6 +53,12 @@ public class NetworkHandler
             FoundCityMessage::decode,
             FoundCityMessage::handle);
 
+        // id=5: 区划生长请求（G 键 → 服务端 ZoneBuilder）
+        CHANNEL.registerMessage(id++, RequestZoneGrowthMessage.class,
+            RequestZoneGrowthMessage::encode,
+            RequestZoneGrowthMessage::decode,
+            RequestZoneGrowthMessage::handle);
+
         MetroGenesis.LOGGER.info("[Network] channel initialized");
     }
 }

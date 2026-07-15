@@ -1,6 +1,8 @@
 package com.metrogenesis.construction;
 
 import com.metrogenesis.catalog.BuildingCatalogEntry;
+import com.metrogenesis.catalog.BuildingCatalogScanner;
+import com.metrogenesis.colony.ColonyState;
 import com.metrogenesis.structurize.blueprints.v1.Blueprint;
 import com.metrogenesis.structurize.storage.StructurePacks;
 import com.metrogenesis.structurize.util.BlockInfo;
@@ -29,6 +31,19 @@ public class ZoneBuilder {
 
     /** 每 tick 放置的最大方块数 */
     private static final int BLOCKS_PER_TICK = 50;
+
+    /** 单例实例（由 ServerTickEvent 驱动 tick） */
+    private static ZoneBuilder INSTANCE;
+
+    /**
+     * 获取 ZoneBuilder 单例。
+     */
+    public static ZoneBuilder getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new ZoneBuilder();
+        }
+        return INSTANCE;
+    }
 
     /** 队列：ZoneRect → 待放置的 BuildingSlot 列表 */
     private final Map<ZoneRect, List<ZonePlanner.BuildingSlot>> queue = new LinkedHashMap<>();
@@ -64,9 +79,7 @@ public class ZoneBuilder {
         }
 
         // 通过 ZonePlanner 生成放置计划
-        // 注意：getEntriesForZone 需要从外部注入建筑目录，此处返回空列表
-        // 实际使用时建议直接调用 startGrowth(zone, prePlannedSlots, level)
-        List<ZonePlanner.BuildingSlot> slots = new ZonePlanner().plan(zone, getEntriesForZone(zone));
+        List<ZonePlanner.BuildingSlot> slots = new ZonePlanner().plan(zone, getEntriesForZone(zone, level));
         startGrowth(zone, slots, level);
     }
 
@@ -205,10 +218,16 @@ public class ZoneBuilder {
         BlockPos origin = new BlockPos(slot.minX(), groundY, slot.minZ());
 
         // ── 扣除 C-Value 成本 ─────────────────────────────────
-        // TODO: 从国库扣除 C-Value
-        // long cost = entry.materialCost();
-        // TreasuryManager.get(level).withdraw(cost);
-        // LOGGER.info("ZoneBuilder: deducted {} C-Value for '{}'", cost, entry.name());
+        long rawCost = entry.materialCost();
+        int cost = (int) Math.min(rawCost, Integer.MAX_VALUE);
+        ColonyState colony = ColonyState.get(level);
+        if (cost > 0 && !colony.spend(cost)) {
+            LOGGER.warn("ZoneBuilder: insufficient funds (need {}), skipping '{}'", cost, entry.name());
+            return false;
+        }
+        if (cost > 0) {
+            LOGGER.info("ZoneBuilder: deducted {} C-Value for '{}'", cost, entry.name());
+        }
 
         state.currentBlueprint = blueprint;
         state.currentBlockInfos = blueprint.getBlockInfoAsList();
@@ -303,12 +322,22 @@ public class ZoneBuilder {
     /**
      * 获取区域匹配的建筑目录条目。
      * <p>
-     * 注意：此方法需要外部注入 BuildingCatalog。当前返回空列表，
-     * 实际使用时请调用 {@link #startGrowth(ZoneRect, List, ServerLevel)} 传入预规划 slot。
+     * 从 BuildingCatalogScanner 扫描所有蓝图，按当前 Colony 激活的风格包过滤，
+     * 供 ZonePlanner.plan() 装箱匹配。
      */
-    private List<BuildingCatalogEntry> getEntriesForZone(ZoneRect zone) {
-        // TODO: 从 BuildingCatalog 获取当前风格包下的所有条目，
-        //       并按 zone.zoneType() 和 zone.density() 预筛选
-        return Collections.emptyList();
+    private List<BuildingCatalogEntry> getEntriesForZone(ZoneRect zone, ServerLevel level) {
+        ColonyState state = ColonyState.get(level);
+        String activePack = state.getActiveStylePack();
+        if (activePack == null || activePack.isEmpty()) {
+            LOGGER.warn("ZoneBuilder: no active style pack set on colony, cannot grow zone {}", zone);
+            return Collections.emptyList();
+        }
+
+        BuildingCatalogScanner scanner = new BuildingCatalogScanner();
+        List<BuildingCatalogEntry> allEntries = scanner.scanAll();
+
+        return allEntries.stream()
+            .filter(e -> activePack.equals(e.packName()))
+            .collect(java.util.stream.Collectors.toList());
     }
 }

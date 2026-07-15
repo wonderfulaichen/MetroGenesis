@@ -235,9 +235,13 @@ public class ColonyState extends SavedData {
         this.cityName = (name != null && !name.isBlank()) ? name : null;
         this.activeStylePack = stylePack;
         this.townHallPos = corePos;
+        // 首次开城发放起始资金
+        if (this.funds == 0) {
+            this.funds = 1000;
+        }
         setDirty();
-        MetroGenesis.LOGGER.info("[Colony] 城市创立：{} (style={}, core={})",
-                getCityName(), stylePack, corePos.toShortString());
+        MetroGenesis.LOGGER.info("[Colony] 城市创立：{} (style={}, core={}) funds={}",
+                getCityName(), stylePack, corePos.toShortString(), this.funds);
     }
 
     /** 城市是否已创立（用于门禁判断，避免未开城就刷市民） */

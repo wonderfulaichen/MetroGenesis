@@ -112,16 +112,19 @@ public class ZonePlanner {
         // 从 CategoryMapper 获取该 zoneType 对应的分类名列表
         List<String> cats = CategoryMapper.getCategoriesForZoneType(zoneType);
 
-        // 先用 buildingType + category 双条件匹配
+        // 设施方块优先、目录兜底：用 getZoneCategoryForEntry 取有效分类后匹配
         List<BuildingCatalogEntry> result = new ArrayList<>();
         for (BuildingCatalogEntry e : entries) {
-            // 跳过无缝建筑（不在区内自动生长）
-            if (CategoryMapper.CAT_SEAMLESS.equals(e.category())) continue;
+            // 取 MetroGenesis 自有分类（mgCategory，扫描时由我们的规则设定）
+            String effectiveCategory = CategoryMapper.getZoneCategoryForEntry(e);
 
-            // 检查 category 是否匹配
+            // 跳过无缝建筑（不在区内自动生长）
+            if (CategoryMapper.CAT_SEAMLESS.equals(effectiveCategory)) continue;
+
+            // 检查有效分类是否匹配该 zoneType
             boolean catMatch = false;
             for (String c : cats) {
-                if (c.equals(e.category())) {
+                if (c.equals(effectiveCategory)) {
                     catMatch = true;
                     break;
                 }

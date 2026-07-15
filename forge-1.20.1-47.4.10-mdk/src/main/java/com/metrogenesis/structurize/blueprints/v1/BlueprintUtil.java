@@ -320,7 +320,7 @@ public class BlueprintUtil
                         if (!remapped.isAir())
                         {
                             palette.add(i, remapped);
-                            Log.getLogger().info("[Blueprint] Remapped block: {} -> {}", name, fixedNbt.getString("Name"));
+                            Log.getLogger().debug("[Blueprint] Remapped block: {} -> {}", name, fixedNbt.getString("Name"));
                         }
                         else
                         {

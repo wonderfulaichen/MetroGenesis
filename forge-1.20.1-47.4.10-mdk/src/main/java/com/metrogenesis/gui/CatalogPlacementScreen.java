@@ -261,7 +261,8 @@ public class CatalogPlacementScreen extends Screen
                 entry.packName(),
                 entry.resourcePath(),
                 finalPos,
-                rot
+                rot,
+                entry.materialCost()
             )
         );
         Minecraft.getInstance().setScreen(null);
